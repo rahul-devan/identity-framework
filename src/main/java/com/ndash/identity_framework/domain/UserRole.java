@@ -2,12 +2,16 @@ package com.ndash.identity_framework.domain;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user_roles")
 @Data
+@Getter
+@Setter
 public class UserRole {
 
     @EmbeddedId
@@ -23,7 +27,7 @@ public class UserRole {
     @JoinColumn(name = "role_id")
     private Role role;
 
-    @Column(name = "assigned_at", nullable = false)
+    @Column(name = "assigned_at")
     private LocalDateTime assignedAt = LocalDateTime.now();
 }
 
