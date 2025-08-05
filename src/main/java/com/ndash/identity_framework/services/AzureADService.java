@@ -54,5 +54,21 @@ public class AzureADService {
     public void deleteUser(String userId) {
         graphClient.users(userId).buildRequest().delete();
     }
+
+    public List<com.microsoft.graph.models.Group> getAllGroups() {
+        return graphClient.groups().buildRequest().get().getCurrentPage();
+    }
+
+    public com.microsoft.graph.models.User getUserByEmail(String email) {
+        List<com.microsoft.graph.models.User> users = graphClient.users()
+                .buildRequest()
+                .filter("mail eq '" + email + "'")
+                .get()
+                .getCurrentPage();
+
+        return users.isEmpty() ? null : users.get(0);
+    }
+
+
 }
 
