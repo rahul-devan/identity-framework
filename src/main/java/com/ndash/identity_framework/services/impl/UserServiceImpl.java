@@ -8,9 +8,14 @@ import com.ndash.identity_framework.repositories.RoleRepository;
 import com.ndash.identity_framework.repositories.UserRepository;
 import com.ndash.identity_framework.services.AzureADService;
 import com.ndash.identity_framework.services.UserService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -53,7 +58,7 @@ public class UserServiceImpl implements UserService {
             Set<Role> roles = userDto.getRoles().stream()
                     .map(name -> roleRepository.findByName(name))
                     .collect(Collectors.toSet());
-            user.setRoles(roles);
+            user.setRoles(!roles.isEmpty() ? roles : new HashSet<>());
 
             User savedUser = userRepository.save(user);
             return UserMapper.toDto(savedUser);
@@ -61,7 +66,7 @@ public class UserServiceImpl implements UserService {
 
         // 3. Create new user in Azure AD
         com.microsoft.graph.models.User azureUser =
-                azureADService.createUser(userDto.getFirstName() + " " + userDto.getLastName(),
+                azureADService.createUser(userDto.getFirstName(),
                         userDto.getEmail());
 
         if (azureUser == null || azureUser.id == null) {
@@ -166,6 +171,15 @@ public class UserServiceImpl implements UserService {
 
         // 2. Delete from local DB
         userRepository.delete(user);
+    }
+
+    @Override
+    public Page<UserDto> searchUsersByUsername(String username, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("username").ascending());
+
+        Page<User> userPage = userRepository.findByUsernameContainingIgnoreCaseAndActiveTrue(username, pageable);
+
+        return userPage.map(UserMapper::toDto);  // Converts each User to UserDto
     }
 
 

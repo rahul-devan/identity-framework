@@ -3,6 +3,7 @@ package com.ndash.identity_framework.controller;
 import com.ndash.identity_framework.dto.ApiResponse;
 import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.services.UserService;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,7 +12,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/users")
 public class UserController {
 
     private final UserService userService;
@@ -43,6 +44,16 @@ public class UserController {
     public ResponseEntity<ApiResponse<String>> syncAzureUsers() {
         userService.syncUsersFromAzure();
         return ResponseEntity.ok(ApiResponse.success("Sync completed", 200));
+    }
+
+    @GetMapping("/search/users")
+    public ResponseEntity<ApiResponse<Page<UserDto>>> searchUsers(
+            @RequestParam String username,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Page<UserDto> results = userService.searchUsersByUsername(username, page, size);
+        return ResponseEntity.ok(ApiResponse.success(results, 200));
     }
 }
 
