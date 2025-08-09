@@ -45,7 +45,8 @@ public class AzureADService {
         user.userPrincipalName = displayName + "@NETORGFT16179011.onmicrosoft.com";
         user.accountEnabled = true;
         user.passwordProfile = new PasswordProfile();
-        user.passwordProfile.password = "Stro  ngPassword123!";
+        user.mail = mail;
+        user.passwordProfile.password = "StrongPassword123!";
         user.passwordProfile.forceChangePasswordNextSignIn = true;
 
         return graphClient.users().buildRequest().post(user);

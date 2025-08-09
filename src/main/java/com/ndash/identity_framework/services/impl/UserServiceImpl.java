@@ -98,8 +98,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<UserDto> getAllUsers() {
-        return userRepository.findByActiveTrue()
-                .stream()
+
+        List<User> users = userRepository.findByActiveTrue();
+        return users.stream()
                 .map(UserMapper::toDto)
                 .collect(Collectors.toList());
     }
@@ -114,6 +115,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void syncUsersFromAzure() {
+        Set<Role> assignedRoles = new HashSet<>();
+        Role defaultRole = roleRepository.findByName("user").orElse(null);// Need to change this logic later
+        assignedRoles.add(defaultRole);
         // 1. Fetch Azure users
         List<com.microsoft.graph.models.User> azureUsers = azureADService.getAllUsers();
         Set<String> azureUserIds = azureUsers.stream()
@@ -146,6 +150,7 @@ public class UserServiceImpl implements UserService {
                 newUser.setLastName(getLastName(azureUser.displayName));
                 newUser.setPhoneNumber(azureUser.mobilePhone);
                 newUser.setActive(true);
+                newUser.setRoles(assignedRoles);
                 userRepository.save(newUser);
             } else {
                 // Existing user → update + ensure active
@@ -155,6 +160,7 @@ public class UserServiceImpl implements UserService {
                 existingUser.setPhoneNumber(azureUser.mobilePhone);
                 existingUser.setEmail(azureUser.mail);
                 existingUser.setActive(true);
+                existingUser.setRoles(assignedRoles);
                 userRepository.save(existingUser);
             }
         }
