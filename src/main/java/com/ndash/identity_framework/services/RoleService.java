@@ -28,7 +28,7 @@ public interface RoleService {
      * @param size  Page size
      * @return PaginatedResponse of roles
      */
-    Page<RoleDto> searchRolesByName(String name, int page, int size);
+    List<RoleDto> searchRolesByName(String name, int page, int size);
 
     /**
      * Get a specific role by ID

@@ -36,12 +36,12 @@ public class RoleController {
 
     // Search Roles (paginated)
     @GetMapping("/search")
-    public ResponseEntity<ApiResponse<Page<RoleDto>>> searchRoles(
+    public ResponseEntity<ApiResponse<List<RoleDto>>> searchRoles(
             @RequestParam String name,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        Page<RoleDto> rolesPage = roleService.searchRolesByName(name, page, size);
+        List<RoleDto> rolesPage = roleService.searchRolesByName(name, page, size);
         return ResponseEntity.ok(ApiResponse.success(rolesPage, 200));
     }
 
