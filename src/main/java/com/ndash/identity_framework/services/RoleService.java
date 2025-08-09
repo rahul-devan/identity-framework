@@ -2,6 +2,7 @@ package com.ndash.identity_framework.services;
 
 import com.ndash.identity_framework.dto.PaginatedResponse;
 import com.ndash.identity_framework.dto.RoleDto;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
@@ -27,7 +28,7 @@ public interface RoleService {
      * @param size  Page size
      * @return PaginatedResponse of roles
      */
-    PaginatedResponse<RoleDto> searchRolesByName(String name, int page, int size);
+    Page<RoleDto> searchRolesByName(String name, int page, int size);
 
     /**
      * Get a specific role by ID

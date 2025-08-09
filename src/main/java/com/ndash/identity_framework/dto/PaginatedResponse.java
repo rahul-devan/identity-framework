@@ -26,15 +26,15 @@ public class PaginatedResponse<T> {
     /**
      * Helper to convert Spring Page<T> to PaginatedResponse<T>
      */
-    public static <T> PaginatedResponse<T> fromPage(Page<T> page) {
-        return new PaginatedResponse<>(
-                page.getContent(),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages(),
-                page.isLast(),
-                page.isFirst()
-        );
-    }
+//    public static <T> PaginatedResponse<T> fromPage(Page<T> page) {
+//        return new PaginatedResponse<>(
+//                page.getContent(),
+//                page.getNumber(),
+//                page.getSize(),
+//                page.getTotalElements(),
+//                page.getTotalPages(),
+//                page.isLast(),
+//                page.isFirst()
+//        );
+//    }
 }

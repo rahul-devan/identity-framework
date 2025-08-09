@@ -4,6 +4,7 @@ import com.ndash.identity_framework.dto.ApiResponse;
 import com.ndash.identity_framework.dto.PaginatedResponse;
 import com.ndash.identity_framework.dto.RoleDto;
 import com.ndash.identity_framework.services.RoleService;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,12 +35,12 @@ public class RoleController {
 
     // Search Roles (paginated)
     @GetMapping("/search")
-    public ResponseEntity<ApiResponse<PaginatedResponse<RoleDto>>> searchRoles(
+    public ResponseEntity<ApiResponse<Page<RoleDto>>> searchRoles(
             @RequestParam String name,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        PaginatedResponse<RoleDto> rolesPage = roleService.searchRolesByName(name, page, size);
+        Page<RoleDto> rolesPage = roleService.searchRolesByName(name, page, size);
         return ResponseEntity.ok(ApiResponse.success(rolesPage, 200));
     }
 

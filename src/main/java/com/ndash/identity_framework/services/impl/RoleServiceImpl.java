@@ -38,10 +38,10 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public PaginatedResponse<RoleDto> searchRolesByName(String name, int page, int size) {
+    public Page<RoleDto> searchRolesByName(String name, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<Role> rolePage = roleRepository.findByNameContainingIgnoreCase(name, pageable);
-        return PaginatedResponse.fromPage(rolePage.map(RoleMapper::toDto));
+        return rolePage.map(RoleMapper::toDto);
     }
 
     @Override

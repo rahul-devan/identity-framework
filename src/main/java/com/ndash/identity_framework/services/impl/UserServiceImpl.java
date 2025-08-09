@@ -15,9 +15,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,6 +34,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDto createUser(UserDto userDto) {
+
+        Role defaultRole = roleRepository.findByName("user").orElse(null);// Need to change this logic later
         // 1. Check local DB
         if (userRepository.findByEmail(userDto.getEmail()).isPresent()) {
             throw new RuntimeException("User already exists in local database");
@@ -56,7 +56,7 @@ public class UserServiceImpl implements UserService {
 
             // Assign roles (from request or default)
             Set<Role> roles = userDto.getRoles().stream()
-                    .map(name -> roleRepository.findByName(name))
+                    .map(name -> roleRepository.findByName(name).orElse(defaultRole))
                     .collect(Collectors.toSet());
             user.setRoles(!roles.isEmpty() ? roles : new HashSet<>());
 
@@ -73,13 +73,19 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Failed to create user in Azure AD");
         }
 
-        // 4. Assign roles
-        Set<Role> roles = userDto.getRoles().stream()
-                .map(name -> roleRepository.findByName(name))
-                .collect(Collectors.toSet());
-
         // 5. Convert DTO -> Entity and set Azure AD ID
-        User user = UserMapper.toEntity(userDto, roles);
+
+        User user;
+        Set<Role> assignedRoles = new HashSet<>();
+        if(userDto.getRoles() != null && !userDto.getRoles().isEmpty()){
+            assignedRoles = userDto.getRoles().stream()
+                    .map(roleName -> roleRepository.findByName(roleName).orElse(defaultRole))
+                    .filter(Objects::nonNull) // skip missing roles
+                    .collect(Collectors.toSet());
+        } else {
+            assignedRoles.add(defaultRole);
+        }
+        user = UserMapper.toEntity(userDto, assignedRoles);
         user.setAzureId(azureUser.id);
         user.setUsername(azureUser.userPrincipalName);
         user.setActive(true);
@@ -198,7 +204,7 @@ public class UserServiceImpl implements UserService {
 
         for (com.microsoft.graph.models.Group group : azureGroups) {
             // Ensure role exists locally
-            Role role = roleRepository.findByName(group.displayName);
+            Role role = roleRepository.findByName(group.displayName).orElse(null);
             if (role == null) {
                 Role newRole = new Role();
                 newRole.setName(group.displayName);
