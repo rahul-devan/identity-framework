@@ -15,11 +15,11 @@ public class RoleMapper {
         dto.setName(role.getName());
 
         // Map users to UserDto
-        dto.setUsers(
-                role.getUsers().stream()
-                        .map(UserMapper::toDto) // Assuming UserMapper exists
-                        .collect(Collectors.toSet())
-        );
+//        dto.setUsers(
+//                role.getUsers().stream()
+//                        .map(UserMapper::toDto) // Assuming UserMapper exists
+//                        .collect(Collectors.toSet())
+//        );
 
         return dto;
     }

@@ -22,12 +22,12 @@ public class UserMapper {
         dto.setEmail(user.getEmail());
         dto.setDob(user.getDob());
         dto.setMaskedSsn(CommonUtil.maskSSN(user.getSsn()));  // masked
-        dto.setRoles(
-                new HashSet<>(user.getRoles()) // copy to avoid concurrent modification
-                        .stream()
-                        .map(Role::getName)
-                        .collect(Collectors.toSet())
-        );
+//        dto.setRoles(
+//                new HashSet<>(user.getRoles()) // copy to avoid concurrent modification
+//                        .stream()
+//                        .map(Role::getName)
+//                        .collect(Collectors.toSet())
+//        );
         return dto;
     }
 

@@ -83,7 +83,7 @@ public class UserServiceImpl implements UserService {
         } else {
             assignedRoles.add(defaultRole);
         }
-        user = UserMapper.toEntity(userDto, assignedRoles);
+        user = UserMapper.toEntity(userDto, Set.of(defaultRole));
         user.setAzureId(azureUser.id);
         user.setUsername(azureUser.userPrincipalName);
         user.setActive(true);
