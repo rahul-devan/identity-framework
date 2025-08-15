@@ -54,12 +54,10 @@ public class UserServiceImpl implements UserService {
             user.setPhoneNumber(existingAzureUser.mobilePhone);
             user.setActive(true);
 
-            // Assign roles (from request or default)
-            Set<Role> roles = userDto.getRoles().stream()
-                    .map(name -> roleRepository.findByName(name).orElse(defaultRole))
-                    .collect(Collectors.toSet());
-            user.setRoles(!roles.isEmpty() ? roles : new HashSet<>());
-
+            // Assign roles (default)
+            Set<Role> roles = new HashSet<>();
+            roles.add(defaultRole);
+            user.setRoles(roles);
             User savedUser = userRepository.save(user);
             return UserMapper.toDto(savedUser);
         }
