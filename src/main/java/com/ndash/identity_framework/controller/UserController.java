@@ -48,7 +48,7 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("Sync completed", 200));
     }
 
-    @GetMapping("/search/users")
+    @GetMapping("/search")
     public ResponseEntity<ApiResponse<Page<UserDto>>> searchUsers(
             @RequestParam String username,
             @RequestParam(defaultValue = "0") int page,
