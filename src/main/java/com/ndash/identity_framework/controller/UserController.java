@@ -2,6 +2,7 @@ package com.ndash.identity_framework.controller;
 
 import com.ndash.identity_framework.dto.ApiResponse;
 import com.ndash.identity_framework.dto.UserDto;
+import com.ndash.identity_framework.exception.ApiException;
 import com.ndash.identity_framework.services.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -23,14 +24,14 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<UserDto>> createUser(@RequestBody UserDto userDto) {
+    public ResponseEntity<ApiResponse<UserDto>> createUser(@RequestBody UserDto userDto) throws ApiException {
         UserDto createdUser = userService.createUser(userDto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(createdUser, HttpStatus.CREATED.value()));
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<UserDto>>> getAllUsers() {
+    public ResponseEntity<ApiResponse<List<UserDto>>> getAllUsers() throws ApiException {
         List<UserDto> users = userService.getAllUsers();
         return ResponseEntity.ok(ApiResponse.success(users, HttpStatus.OK.value()));
     }

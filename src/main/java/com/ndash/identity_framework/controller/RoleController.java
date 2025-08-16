@@ -3,6 +3,7 @@ package com.ndash.identity_framework.controller;
 import com.ndash.identity_framework.dto.ApiResponse;
 import com.ndash.identity_framework.dto.PaginatedResponse;
 import com.ndash.identity_framework.dto.RoleDto;
+import com.ndash.identity_framework.exception.ApiException;
 import com.ndash.identity_framework.services.RoleService;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -29,7 +30,7 @@ public class RoleController {
 
     // Get All Roles (non-paginated)
     @GetMapping
-    public ResponseEntity<ApiResponse<List<RoleDto>>> getAllRoles() {
+    public ResponseEntity<ApiResponse<List<RoleDto>>> getAllRoles() throws ApiException {
         List<RoleDto> roles = roleService.getAllRoles();
         return ResponseEntity.ok(ApiResponse.success(roles, 200));
     }

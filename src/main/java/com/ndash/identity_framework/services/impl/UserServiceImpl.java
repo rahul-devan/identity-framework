@@ -2,12 +2,15 @@ package com.ndash.identity_framework.services.impl;
 
 import com.ndash.identity_framework.domain.Role;
 import com.ndash.identity_framework.domain.User;
+import com.ndash.identity_framework.domain.UserRole;
 import com.ndash.identity_framework.dto.UserDto;
+import com.ndash.identity_framework.exception.ApiException;
 import com.ndash.identity_framework.mapper.UserMapper;
 import com.ndash.identity_framework.repositories.RoleRepository;
 import com.ndash.identity_framework.repositories.UserRepository;
 import com.ndash.identity_framework.services.AzureADService;
 import com.ndash.identity_framework.services.UserService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +23,7 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@Slf4j
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
@@ -33,74 +37,97 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserDto createUser(UserDto userDto) {
+    public UserDto createUser(UserDto userDto) throws ApiException {
 
-        Role defaultRole = roleRepository.findByName("user").orElse(null);// Need to change this logic later
-        // 1. Check local DB
-        if (userRepository.findByEmail(userDto.getEmail()).isPresent()) {
-            throw new RuntimeException("User already exists in local database");
+        Role defaultRole = roleRepository.findByName("user").orElse(null); // Need to change this logic later
+        if (defaultRole == null) {
+            throw new RuntimeException("Default role 'user' not found in DB");
         }
 
-        // 2. Check Azure AD
-        com.microsoft.graph.models.User existingAzureUser = azureADService.getUserByEmail(userDto.getEmail());
-        if (existingAzureUser != null) {
-            // Option A: Sync them into local DB
-            User user = new User();
-            user.setAzureId(existingAzureUser.id);
-            user.setUsername(existingAzureUser.userPrincipalName);
-            user.setEmail(existingAzureUser.mail);
-            user.setFirstName(getFirstName(existingAzureUser.displayName));
-            user.setLastName(getLastName(existingAzureUser.displayName));
-            user.setPhoneNumber(existingAzureUser.mobilePhone);
+        try {
+            // 1. Check local DB
+            if (userRepository.findByEmail(userDto.getEmail()).isPresent()) {
+                log.warn("User already exists in local database");
+                throw new RuntimeException("User already exists in local database");
+            }
+
+            // 2. Check Azure AD
+            com.microsoft.graph.models.User existingAzureUser =
+                    azureADService.getUserByEmail(userDto.getEmail());
+
+            if (existingAzureUser != null) {
+                // Option A: Sync them into local DB
+                User user = new User();
+                user.setAzureId(existingAzureUser.id);
+                user.setUsername(existingAzureUser.userPrincipalName);
+                user.setEmail(existingAzureUser.mail);
+                user.setFirstName(getFirstName(existingAzureUser.displayName));
+                user.setLastName(getLastName(existingAzureUser.displayName));
+                user.setPhoneNumber(existingAzureUser.mobilePhone);
+                user.setActive(true);
+
+                // Assign default role
+                UserRole userRole = new UserRole();
+                userRole.setUser(user);
+                userRole.setRole(defaultRole);
+                user.setUserRoles(Set.of(userRole));
+
+                User savedUser = userRepository.save(user);
+                log.info("User already present in azure, synced to database");
+                return UserMapper.toDto(savedUser);
+            }
+
+            // 3. Create new user in Azure AD
+            com.microsoft.graph.models.User azureUser =
+                    azureADService.createUser(userDto.getFirstName(), userDto.getEmail());
+
+            if (azureUser == null || azureUser.id == null) {
+                throw new RuntimeException("Failed to create user in Azure AD");
+            }
+            log.info("User created in Azure AD");
+
+            // 5. Resolve roles
+            Set<Role> assignedRoles;
+            if (userDto.getRoles() != null && !userDto.getRoles().isEmpty()) {
+                assignedRoles = userDto.getRoles().stream()
+                        .map(roleName -> roleRepository.findByName(roleName).orElse(defaultRole))
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet());
+                log.info("Assigned roles: {}", assignedRoles);
+            } else {
+                assignedRoles = Set.of(defaultRole);
+                log.info("Assigned default role only");
+            }
+            // 4. Convert DTO -> Entity
+            User user = UserMapper.toEntity(userDto, assignedRoles);
+            user.setAzureId(azureUser.id);
+            user.setUsername(azureUser.userPrincipalName);
             user.setActive(true);
 
-            // Assign roles (default)
-            Set<Role> roles = new HashSet<>();
-            roles.add(defaultRole);
-            user.setRoles(roles);
+            // 7. Save to DB
             User savedUser = userRepository.save(user);
+            log.info("User added to database with username: {}", savedUser.getUsername());
+
             return UserMapper.toDto(savedUser);
+
+        } catch (Exception ex) {
+            log.error("Exception occurred while creating user: {}", ex.getMessage(), ex);
+            throw new ApiException(ex.getMessage());
         }
-
-        // 3. Create new user in Azure AD
-        com.microsoft.graph.models.User azureUser =
-                azureADService.createUser(userDto.getFirstName(),
-                        userDto.getEmail());
-
-        if (azureUser == null || azureUser.id == null) {
-            throw new RuntimeException("Failed to create user in Azure AD");
-        }
-
-        // 5. Convert DTO -> Entity and set Azure AD ID
-
-        User user;
-        Set<Role> assignedRoles = new HashSet<>();
-        if(userDto.getRoles() != null && !userDto.getRoles().isEmpty()){
-            assignedRoles = userDto.getRoles().stream()
-                    .map(roleName -> roleRepository.findByName(roleName).orElse(defaultRole))
-                    .filter(Objects::nonNull) // skip missing roles
-                    .collect(Collectors.toSet());
-        } else {
-            assignedRoles.add(defaultRole);
-        }
-        user = UserMapper.toEntity(userDto, Set.of(defaultRole));
-        user.setAzureId(azureUser.id);
-        user.setUsername(azureUser.userPrincipalName);
-        user.setActive(true);
-
-        // 6. Save to DB
-        User savedUser = userRepository.save(user);
-
-        return UserMapper.toDto(savedUser);
     }
 
     @Override
-    public List<UserDto> getAllUsers() {
-
-        List<User> users = userRepository.findByActiveTrue();
-        return users.stream()
-                .map(UserMapper::toDto)
-                .collect(Collectors.toList());
+    public List<UserDto> getAllUsers() throws ApiException {
+        try {
+            List<User> users = userRepository.findByActiveTrue();
+            log.info("Fetched all users, total size: {}", users.size());
+            return users.stream()
+                    .map(UserMapper::toDto)
+                    .collect(Collectors.toList());
+        } catch (Exception ex){
+            log.error("Exception occurred while fetching users: {}", ex.getMessage());
+            throw new ApiException(ex.getMessage());
+        }
     }
 
     @Override
@@ -148,7 +175,15 @@ public class UserServiceImpl implements UserService {
                 newUser.setLastName(getLastName(azureUser.displayName));
                 newUser.setPhoneNumber(azureUser.mobilePhone);
                 newUser.setActive(true);
-                newUser.setRoles(assignedRoles);
+                Set<UserRole> userRoles = assignedRoles.stream()
+                        .map(role -> {
+                            UserRole ur = new UserRole();
+                            ur.setUser(newUser);
+                            ur.setRole(role);
+                            return ur;
+                        })
+                        .collect(Collectors.toSet());
+                newUser.setUserRoles(userRoles);
                 userRepository.save(newUser);
             } else {
                 // Existing user → update + ensure active
@@ -158,7 +193,15 @@ public class UserServiceImpl implements UserService {
                 existingUser.setPhoneNumber(azureUser.mobilePhone);
                 existingUser.setEmail(azureUser.mail);
                 existingUser.setActive(true);
-                existingUser.setRoles(assignedRoles);
+                Set<UserRole> userRoles = assignedRoles.stream()
+                        .map(role -> {
+                            UserRole ur = new UserRole();
+                            ur.setUser(existingUser);
+                            ur.setRole(role);
+                            return ur;
+                        })
+                        .collect(Collectors.toSet());
+                existingUser.setUserRoles(userRoles);
                 userRepository.save(existingUser);
             }
         }

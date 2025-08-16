@@ -2,6 +2,7 @@ package com.ndash.identity_framework.services;
 
 import com.ndash.identity_framework.dto.PaginatedResponse;
 import com.ndash.identity_framework.dto.RoleDto;
+import com.ndash.identity_framework.exception.ApiException;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
@@ -19,7 +20,7 @@ public interface RoleService {
      * Fetch all roles (non-paginated)
      * @return List of roles
      */
-    List<RoleDto> getAllRoles();
+    List<RoleDto> getAllRoles() throws ApiException;
 
     /**
      * Search roles by name with pagination

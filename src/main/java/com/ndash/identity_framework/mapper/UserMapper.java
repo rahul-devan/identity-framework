@@ -2,6 +2,8 @@ package com.ndash.identity_framework.mapper;
 
 import com.ndash.identity_framework.domain.Role;
 import com.ndash.identity_framework.domain.User;
+import com.ndash.identity_framework.domain.UserRole;
+import com.ndash.identity_framework.domain.UserRoleId;
 import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.util.CommonUtil;
 
@@ -22,12 +24,12 @@ public class UserMapper {
         dto.setEmail(user.getEmail());
         dto.setDob(user.getDob());
         dto.setMaskedSsn(CommonUtil.maskSSN(user.getSsn()));  // masked
-//        dto.setRoles(
-//                new HashSet<>(user.getRoles()) // copy to avoid concurrent modification
-//                        .stream()
-//                        .map(Role::getName)
-//                        .collect(Collectors.toSet())
-//        );
+        dto.setRoles(
+                user.getUserRoles().stream()
+                        .map(ur -> ur.getRole().getName())
+                        .collect(Collectors.toSet())
+        );
+
         return dto;
     }
 
@@ -42,7 +44,15 @@ public class UserMapper {
         user.setEmail(dto.getEmail());
         user.setDob(dto.getDob());
         user.setSsn(dto.getSsn());
-        user.setRoles(!roles.isEmpty() ? roles : new HashSet<>());
+        Set<UserRole> userRoles = roles.stream().map(role -> {
+            UserRole ur = new UserRole();
+            ur.setUser(user);
+            ur.setRole(role);
+            ur.setId(new UserRoleId(user.getId(), role.getId()));
+            return ur;
+        }).collect(Collectors.toSet());
+
+        user.setUserRoles(userRoles);
         return user;
     }
 }
