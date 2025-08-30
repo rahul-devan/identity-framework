@@ -19,6 +19,7 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable) // disable CSRF for APIs
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/api/login").permitAll()   // allow login without JWT
                         .anyRequest().authenticated()                // protect everything else
                 )
