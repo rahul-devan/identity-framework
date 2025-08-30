@@ -40,6 +40,9 @@ management:
   endpoints:
     web:
       exposure:
-        include: "*"   # or specify only: health,info,metrics,env,beans
+        include: "health,info"
+  endpoint:
+    health:
+      show-details: always
 
 
