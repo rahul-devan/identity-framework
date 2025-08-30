@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: identity-framework
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://login.microsoftonline.com/${azure.tenant-id}/v2.0
+
+
+  datasource:
+    url: jdbc:postgresql://coolify.ndashdigital.com:5432/postgres?currentSchema=identity_framework
+    username: postgres
+    password: KuLUmtOr2WPqdjUQ1DuRKnRdfrj61iaiS10maP42gAG40Uu07RwSSh2QXBWIS9gQ
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 30000
+      max-lifetime: 1800000
+      connection-timeout: 20000
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update       # change to update / validate / create-drop as needed
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+azure:
+  tenant-id: db067b07-979a-4dfa-8f65-2f7e2ed9201d
+  client-id: 2fea369b-c5a4-40b3-8bbf-4634463719fd
+  client-secret: SS28Q~Tjbcw1a.uBN_119o.uMt3-RxCU1y9wkawX
+  graph:
+    scope: https://graph.microsoft.com/.default
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"   # or specify only: health,info,metrics,env,beans
+
+

@@ -7,7 +7,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Component
-@Order(2)
+@Order
 @Slf4j
 public class AzureDataInitializer implements CommandLineRunner {
 

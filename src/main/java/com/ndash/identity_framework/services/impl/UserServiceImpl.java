@@ -5,6 +5,7 @@ import com.ndash.identity_framework.domain.User;
 import com.ndash.identity_framework.domain.UserRole;
 import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.exception.ApiException;
+import com.ndash.identity_framework.helper.AzureUserUpdater;
 import com.ndash.identity_framework.mapper.UserMapper;
 import com.ndash.identity_framework.repositories.RoleRepository;
 import com.ndash.identity_framework.repositories.UserRepository;
@@ -29,11 +30,13 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final AzureADService azureADService;
+    private final AzureUserUpdater azureUserUpdater;
 
-    public UserServiceImpl(UserRepository userRepository, RoleRepository roleRepository, AzureADService azureADService) {
+    public UserServiceImpl(UserRepository userRepository, RoleRepository roleRepository, AzureADService azureADService, AzureUserUpdater azureUserUpdater) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.azureADService = azureADService;
+        this.azureUserUpdater = azureUserUpdater;
     }
 
     @Override
@@ -65,6 +68,7 @@ public class UserServiceImpl implements UserService {
                 user.setLastName(getLastName(existingAzureUser.displayName));
                 user.setPhoneNumber(existingAzureUser.mobilePhone);
                 user.setActive(true);
+                user.setPassword("Test123");
 
                 // Assign default role
                 UserRole userRole = new UserRole();
@@ -103,6 +107,7 @@ public class UserServiceImpl implements UserService {
             user.setAzureId(azureUser.id);
             user.setUsername(azureUser.userPrincipalName);
             user.setActive(true);
+            user.setPassword("Test123");
 
             // 7. Save to DB
             User savedUser = userRepository.save(user);
@@ -187,22 +192,9 @@ public class UserServiceImpl implements UserService {
                 userRepository.save(newUser);
             } else {
                 // Existing user → update + ensure active
-                existingUser.setUsername(azureUser.userPrincipalName);
-                existingUser.setFirstName(getFirstName(azureUser.displayName));
-                existingUser.setLastName(getLastName(azureUser.displayName));
-                existingUser.setPhoneNumber(azureUser.mobilePhone);
-                existingUser.setEmail(azureUser.mail);
-                existingUser.setActive(true);
-                Set<UserRole> userRoles = assignedRoles.stream()
-                        .map(role -> {
-                            UserRole ur = new UserRole();
-                            ur.setUser(existingUser);
-                            ur.setRole(role);
-                            return ur;
-                        })
-                        .collect(Collectors.toSet());
-                existingUser.setUserRoles(userRoles);
-                userRepository.save(existingUser);
+                if (azureUserUpdater.updateUserFromAzure(existingUser, azureUser, assignedRoles)) {
+                    userRepository.save(existingUser);
+                }
             }
         }
 
