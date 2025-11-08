@@ -5,6 +5,8 @@ import com.ndash.identity_framework.dto.ApplicationDto;
 import com.ndash.identity_framework.services.ApplicationService;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 @CrossOrigin("*")
@@ -22,7 +24,8 @@ public class ApplicationController {
     public ResponseEntity<ApiResponse<Page<ApplicationDto>>> searchApplications(
             @RequestParam String name,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal Jwt jwt) {
 
         Page<ApplicationDto> results = applicationService.searchApplicationsByName(name, page, size);
         return ResponseEntity.ok(ApiResponse.success(results, 200));

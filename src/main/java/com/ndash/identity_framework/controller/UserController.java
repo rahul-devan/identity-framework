@@ -6,6 +6,8 @@ import com.ndash.identity_framework.exception.ApiException;
 import com.ndash.identity_framework.services.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,20 +26,22 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<UserDto>> createUser(@RequestBody UserDto userDto) throws ApiException {
+    public ResponseEntity<ApiResponse<UserDto>> createUser(@RequestBody UserDto userDto,
+                                                           @AuthenticationPrincipal Jwt jwt) throws ApiException {
         UserDto createdUser = userService.createUser(userDto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(createdUser, HttpStatus.CREATED.value()));
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<UserDto>>> getAllUsers() throws ApiException {
+    public ResponseEntity<ApiResponse<List<UserDto>>> getAllUsers(@AuthenticationPrincipal Jwt jwt) throws ApiException {
         List<UserDto> users = userService.getAllUsers();
         return ResponseEntity.ok(ApiResponse.success(users, HttpStatus.OK.value()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<UserDto>> getUserById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<UserDto>> getUserById(@PathVariable Long id,
+                                                            @AuthenticationPrincipal Jwt jwt) {
         UserDto user = userService.getUserById(id);
         return ResponseEntity.ok(ApiResponse.success(user, HttpStatus.OK.value()));
     }
@@ -52,7 +56,8 @@ public class UserController {
     public ResponseEntity<ApiResponse<Page<UserDto>>> searchUsers(
             @RequestParam String username,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal Jwt jwt) {
 
         Page<UserDto> results = userService.searchUsersByUsername(username, page, size);
         return ResponseEntity.ok(ApiResponse.success(results, 200));

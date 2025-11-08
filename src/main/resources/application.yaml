@@ -6,6 +6,7 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: https://login.microsoftonline.com/${azure.tenant-id}/v2.0
+          secret-key: QzY1NEFEM0JDNkEzQjZDM0Y0NEVCNjE1QTU4Njg1NUI=
 
 
   datasource:
@@ -44,5 +45,17 @@ management:
   endpoint:
     health:
       show-details: always
+
+jwt:
+  secret: QzY1NEFEM0JDNkEzQjZDM0Y0NEVCNjE1QTU4Njg1NUI=
+
+jira:
+  api-token: ATATT3xFfGF0oSFcRQ7o5Lhh8oQD1OUw1o0AyFTdHOBLP2nvGm4p08aeZVlrmaNMaCNxftzcJuPB2geOWkuyxI0YomPKuY-oRhyQq0Hq_cxKoqriaYacSZgMoxN6ubOE9BObVDZzszR5YeTuYSNS7ADVJN2cnDhlFDTuf2klgZDJJ9kNljcIOAY=AF29FD23
+  base-url: https://ndashprivatelimited.atlassian.net
+  admin-email: ndashprivatelimited@gmail.com
+
+logging:
+  level:
+    org.springframework.security: DEBUG
 
 
