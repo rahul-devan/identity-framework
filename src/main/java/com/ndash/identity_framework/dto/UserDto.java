@@ -23,4 +23,5 @@ public class UserDto {
     private Set<String> roles;       // role names instead of Role entity
     private String password;
     private String ssn;
+    private String noIcon;
 }

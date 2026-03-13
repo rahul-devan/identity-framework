@@ -1,6 +1,7 @@
 package com.ndash.identity_framework.controller;
 
 import com.ndash.identity_framework.dto.ApiResponse;
+import com.ndash.identity_framework.dto.ResetPasswordRequest;
 import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.exception.ApiException;
 import com.ndash.identity_framework.services.UserService;
@@ -61,6 +62,32 @@ public class UserController {
 
         Page<UserDto> results = userService.searchUsersByUsername(username, page, size);
         return ResponseEntity.ok(ApiResponse.success(results, 200));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<UserDto>> updateUser(
+            @PathVariable Long id,
+            @RequestBody UserDto userDto,
+            @AuthenticationPrincipal Jwt jwt) throws ApiException {
+
+        UserDto updatedUser = userService.updateUser(id, userDto);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(updatedUser, HttpStatus.OK.value())
+        );
+    }
+
+    @PostMapping("/{id}/reset-password")
+    public ResponseEntity<ApiResponse<String>> resetPassword(
+            @PathVariable Long id,
+            @RequestBody ResetPasswordRequest request,
+            @AuthenticationPrincipal Jwt jwt) throws ApiException {
+
+        userService.resetPassword(id, request, jwt);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Password updated successfully", HttpStatus.OK.value())
+        );
     }
 }
 

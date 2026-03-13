@@ -3,6 +3,7 @@ package com.ndash.identity_framework.services.impl;
 import com.ndash.identity_framework.domain.Role;
 import com.ndash.identity_framework.domain.User;
 import com.ndash.identity_framework.domain.UserRole;
+import com.ndash.identity_framework.dto.ResetPasswordRequest;
 import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.exception.ApiException;
 import com.ndash.identity_framework.helper.AzureUserUpdater;
@@ -16,6 +17,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,12 +34,14 @@ public class UserServiceImpl implements UserService {
     private final RoleRepository roleRepository;
     private final AzureADService azureADService;
     private final AzureUserUpdater azureUserUpdater;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserServiceImpl(UserRepository userRepository, RoleRepository roleRepository, AzureADService azureADService, AzureUserUpdater azureUserUpdater) {
+    public UserServiceImpl(UserRepository userRepository, RoleRepository roleRepository, AzureADService azureADService, AzureUserUpdater azureUserUpdater, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.azureADService = azureADService;
         this.azureUserUpdater = azureUserUpdater;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -225,6 +230,134 @@ public class UserServiceImpl implements UserService {
         Page<User> userPage = userRepository.findByUsernameContainingIgnoreCaseAndActiveTrue(username, pageable);
 
         return userPage.map(UserMapper::toDto);  // Converts each User to UserDto
+    }
+
+
+    @Override
+    public UserDto updateUser(Long userId, UserDto userDto) throws ApiException {
+
+        try {
+
+            // 1. Get existing user
+            User existingUser = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // 2. Update Azure AD (optional)
+            if (existingUser.getAzureId() != null) {
+
+                azureADService.updateUser(
+                        existingUser.getAzureId(),
+                        userDto.getFirstName(),
+                        userDto.getLastName(),
+                        userDto.getPhoneNumber()
+                );
+
+                log.info("Azure AD user updated");
+            }
+
+            // 3. Update local DB fields
+            if (userDto.getFirstName() != null) {
+                existingUser.setFirstName(userDto.getFirstName());
+            }
+
+            if (userDto.getLastName() != null) {
+                existingUser.setLastName(userDto.getLastName());
+            }
+
+            if (userDto.getPhoneNumber() != null) {
+                existingUser.setPhoneNumber(userDto.getPhoneNumber());
+            }
+
+            if (userDto.getEmail() != null) {
+                existingUser.setEmail(userDto.getEmail());
+            }
+
+            // 4. Update roles
+            if (userDto.getRoles() != null && !userDto.getRoles().isEmpty()) {
+
+                Set<Role> roles = userDto.getRoles().stream()
+                        .map(roleName -> roleRepository.findByName(roleName)
+                                .orElseThrow(() -> new RuntimeException("Role not found: " + roleName)))
+                        .collect(Collectors.toSet());
+
+                existingUser.getUserRoles().clear();
+
+                Set<UserRole> userRoles = roles.stream().map(role -> {
+                    UserRole ur = new UserRole();
+                    ur.setUser(existingUser);
+                    ur.setRole(role);
+                    return ur;
+                }).collect(Collectors.toSet());
+
+                existingUser.setUserRoles(userRoles);
+            }
+
+            // 5. Save
+            User updatedUser = userRepository.save(existingUser);
+
+            log.info("User updated successfully: {}", updatedUser.getUsername());
+
+            return UserMapper.toDto(updatedUser);
+
+        } catch (Exception ex) {
+            log.error("Exception occurred while updating user: {}", ex.getMessage(), ex);
+            throw new ApiException(ex.getMessage());
+        }
+    }
+
+    @Override
+    public void resetPassword(Long userId, ResetPasswordRequest request, Jwt jwt) throws ApiException {
+
+        try {
+
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            String loggedInEmail = jwt.getClaim("userId");
+
+            User loggedInUser = userRepository.findByEmail(loggedInEmail)
+                    .orElseThrow(() -> new RuntimeException("Logged in user not found"));
+
+            boolean isAdmin = loggedInUser.getUserRoles().stream()
+                    .anyMatch(role -> role.getRole().getName().equalsIgnoreCase("administration") || role.getRole().getName().equalsIgnoreCase("super_admin"));
+
+            // 🔹 ADMIN flow
+            if (isAdmin) {
+
+                if (request.getNewPassword() == null || request.getNewPassword().isBlank()) {
+                    throw new RuntimeException("New password is required");
+                }
+
+                user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+                userRepository.save(user);
+
+                log.info("Admin {} reset password for user {}", loggedInUser.getEmail(), user.getEmail());
+
+                return;
+            }
+
+            // 🔹 NORMAL USER flow
+            if (!loggedInUser.getId().equals(userId)) {
+                throw new RuntimeException("You can only change your own password");
+            }
+
+            if (request.getOldPassword() == null || request.getNewPassword() == null) {
+                throw new RuntimeException("Old password and new password are required");
+            }
+
+            if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+                throw new RuntimeException("Old password is incorrect");
+            }
+
+            user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            userRepository.save(user);
+
+            log.info("User {} changed their password", user.getEmail());
+
+        } catch (Exception ex) {
+            log.error("Error resetting password", ex);
+            throw new ApiException(ex.getMessage());
+        }
     }
 
 

@@ -71,5 +71,18 @@ public class AzureADService {
     }
 
 
+    public void updateUser(String azureId, String firstName, String lastName, String phone) {
+
+        User user = new User();
+
+        user.givenName = firstName;
+        user.surname = lastName;
+        user.mobilePhone = phone;
+
+        graphClient.users(azureId).buildRequest()
+                .patch(user);
+    }
+
+
 }
 

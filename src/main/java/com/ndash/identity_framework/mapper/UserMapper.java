@@ -29,6 +29,7 @@ public class UserMapper {
                         .map(ur -> ur.getRole().getName())
                         .collect(Collectors.toSet())
         );
+        dto.setNoIcon(CommonUtil.generateNoIcon(user.getFirstName(), user.getLastName()));
 
         return dto;
     }
