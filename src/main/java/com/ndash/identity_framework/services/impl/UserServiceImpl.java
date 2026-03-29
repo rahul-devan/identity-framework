@@ -313,7 +313,7 @@ public class UserServiceImpl implements UserService {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
-            String loggedInEmail = jwt.getClaim("userId");
+            String loggedInEmail = jwt.getSubject();
 
             User loggedInUser = userRepository.findByEmail(loggedInEmail)
                     .orElseThrow(() -> new RuntimeException("Logged in user not found"));

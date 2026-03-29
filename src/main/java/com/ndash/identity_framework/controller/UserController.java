@@ -79,11 +79,11 @@ public class UserController {
 
     @PostMapping("/{id}/reset-password")
     public ResponseEntity<ApiResponse<String>> resetPassword(
-            @PathVariable String id,
+            @PathVariable Long id,
             @RequestBody ResetPasswordRequest request,
             @AuthenticationPrincipal Jwt jwt) throws ApiException {
 
-        userService.resetPassword(Long.parseLong(id), request, jwt);
+        userService.resetPassword(id, request, jwt);
 
         return ResponseEntity.ok(
                 ApiResponse.success("Password updated successfully", HttpStatus.OK.value())
