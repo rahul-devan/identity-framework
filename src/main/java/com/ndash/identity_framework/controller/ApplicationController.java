@@ -30,5 +30,22 @@ public class ApplicationController {
         Page<ApplicationDto> results = applicationService.searchApplicationsByName(name, page, size);
         return ResponseEntity.ok(ApiResponse.success(results, 200));
     }
+
+    @GetMapping()
+    public ResponseEntity<ApiResponse<Page<ApplicationDto>>> getAllApplications(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Page<ApplicationDto> results = applicationService.getAllApplications( page, size);
+        return ResponseEntity.ok(ApiResponse.success(results, 200));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<ApplicationDto>> getApplicationById(
+            @PathVariable Long id){
+        ApplicationDto app = applicationService.getApplicationById(id);
+        return ResponseEntity.ok(ApiResponse.success(app, 200));
+    }
 }
 

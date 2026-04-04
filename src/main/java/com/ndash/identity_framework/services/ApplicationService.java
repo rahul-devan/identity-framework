@@ -25,5 +25,18 @@ public class ApplicationService {
 
         return apps.map(ApplicationMapper::toDto);
     }
+
+
+    public Page<ApplicationDto> getAllApplications(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Application> apps = applicationRepository.findAll(pageable);
+        return apps.map(ApplicationMapper::toDto);
+    }
+
+    public ApplicationDto getApplicationById(Long id) {
+        Application app = applicationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Application not found with id: " + id));
+        return ApplicationMapper.toDto(app);
+    }
 }
 
