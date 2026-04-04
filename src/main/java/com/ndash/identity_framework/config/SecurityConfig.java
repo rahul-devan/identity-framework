@@ -38,7 +38,9 @@ public class SecurityConfig {
                                 "/api/applications/**",
 
                                 "/api/roles/**",
-                                "/api/user/**"
+                                "/api/users/**",
+                                "/api/blueprints/**",
+                                "/api/ob-titles/**"
                         ).
                         authenticated()
                         .anyRequest().permitAll()
