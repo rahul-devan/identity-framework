@@ -24,4 +24,9 @@ public class UserDto {
     private String password;
     private String ssn;
     private String noIcon;
+    private String departmentName; // For filtering by department
+    private String departmentId;   // For filtering by department
+    private String jobTitleName;
+    private Long jobTitleId;
+
 }

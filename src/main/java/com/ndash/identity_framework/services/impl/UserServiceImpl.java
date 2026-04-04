@@ -360,6 +360,20 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    @Override
+    public List<UserDto> getUsersByDepartment(String departmentId) throws ApiException {
+        try {
+            List<User> users = userRepository.findByDepartmentIdAndActiveTrue(departmentId);
+            log.info("Fetched users for department {}, total size: {}", departmentId, users.size());
+            return users.stream()
+                    .map(UserMapper::toDto)
+                    .collect(Collectors.toList());
+        } catch (Exception ex){
+            log.error("Exception occurred while fetching users by department: {}", ex.getMessage());
+            throw new ApiException(ex.getMessage());
+        }
+    }
+
 
     private String getFirstName(String displayName) {
         if (displayName == null) return "";
