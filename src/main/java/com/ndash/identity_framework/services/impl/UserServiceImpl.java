@@ -87,13 +87,13 @@ public class UserServiceImpl implements UserService {
             }
 
             // 3. Create new user in Azure AD
-            com.microsoft.graph.models.User azureUser =
-                    azureADService.createUser(userDto.getFirstName(), userDto.getEmail());
-
-            if (azureUser == null || azureUser.id == null) {
-                throw new RuntimeException("Failed to create user in Azure AD");
-            }
-            log.info("User created in Azure AD");
+//            com.microsoft.graph.models.User azureUser =
+//                    azureADService.createUser(userDto.getFirstName(), userDto.getEmail());
+//
+//            if (azureUser == null || azureUser.id == null) {
+//                throw new RuntimeException("Failed to create user in Azure AD");
+//            }
+//            log.info("User created in Azure AD");
 
             // 5. Resolve roles
             Set<Role> assignedRoles;
@@ -109,8 +109,8 @@ public class UserServiceImpl implements UserService {
             }
             // 4. Convert DTO -> Entity
             User user = UserMapper.toEntity(userDto, assignedRoles);
-            user.setAzureId(azureUser.id);
-            user.setUsername(azureUser.userPrincipalName);
+//            user.setAzureId(azureUser.id);
+//            user.setUsername(azureUser.userPrincipalName);
             user.setActive(true);
             user.setPassword("Test123");
 
@@ -245,12 +245,12 @@ public class UserServiceImpl implements UserService {
             // 2. Update Azure AD (optional)
             if (existingUser.getAzureId() != null) {
 
-                azureADService.updateUser(
-                        existingUser.getAzureId(),
-                        userDto.getFirstName(),
-                        userDto.getLastName(),
-                        userDto.getPhoneNumber()
-                );
+//                azureADService.updateUser(
+//                        existingUser.getAzureId(),
+//                        userDto.getFirstName(),
+//                        userDto.getLastName(),
+//                        userDto.getPhoneNumber()
+//                );
 
                 log.info("Azure AD user updated");
             }
