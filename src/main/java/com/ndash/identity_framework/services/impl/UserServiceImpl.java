@@ -129,7 +129,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<UserDto> getAllUsers() throws ApiException {
         try {
-            List<User> users = userRepository.findByActiveTrue();
+            List<User> users = userRepository.findAll();
             log.info("Fetched all users, total size: {}", users.size());
             return users.stream()
                     .map(UserMapper::toDto)
