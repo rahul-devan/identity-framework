@@ -19,7 +19,7 @@ public class AzureDataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        userService.syncUsersFromAzure();
+//        userService.syncUsersFromAzure();
         log.info("AzureDataInitializer:: Sync users from azure to database completed");
     }
 }
