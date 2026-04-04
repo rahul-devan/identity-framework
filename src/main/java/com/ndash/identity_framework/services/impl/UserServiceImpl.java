@@ -272,6 +272,14 @@ public class UserServiceImpl implements UserService {
                 existingUser.setEmail(userDto.getEmail());
             }
 
+            if(userDto.getDob() != null){
+                existingUser.setDob(userDto.getDob());
+            }
+
+            if(userDto.getSsn() != null){
+                existingUser.setSsn(userDto.getSsn());
+            }
+
             // 4. Update roles
             if (userDto.getRoles() != null && !userDto.getRoles().isEmpty()) {
 
