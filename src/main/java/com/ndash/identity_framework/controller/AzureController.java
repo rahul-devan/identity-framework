@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-//@RestController
-//@RequestMapping("/users")
+@RestController
+@RequestMapping("/api/azure")
 public class AzureController {
 
     @Autowired
@@ -21,6 +21,7 @@ public class AzureController {
     }
 
     @PostMapping
+    @RequestMapping("/user/create")
     public User createUser(@RequestParam String displayName, @RequestParam String mail) {
         return azureADService.createUser(displayName, mail);
     }
