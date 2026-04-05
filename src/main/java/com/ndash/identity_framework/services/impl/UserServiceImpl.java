@@ -371,7 +371,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<UserDto> getUsersByDepartment(String departmentId) throws ApiException {
         try {
-            List<User> users = userRepository.findByExternalIdAndActiveTrue(departmentId);
+            List<User> users = userRepository.findByDepartmentIdAndActiveTrue(departmentId);
             log.info("Fetched users for department {}, total size: {}", departmentId, users.size());
             return users.stream()
                     .map(UserMapper::toDto)
