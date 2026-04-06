@@ -41,7 +41,7 @@ public class UserController {
     }
 
     @GetMapping("/department/{departmentId}")
-    public ResponseEntity<ApiResponse<List<UserDto>>> getUsersByDepartment(@PathVariable String departmentId,
+    public ResponseEntity<ApiResponse<List<UserDto>>> getUsersByDepartment(@PathVariable Long departmentId,
                                                                           @AuthenticationPrincipal Jwt jwt) throws ApiException {
         List<UserDto> users = userService.getUsersByDepartment(departmentId);
         return ResponseEntity.ok(ApiResponse.success(users, HttpStatus.OK.value()));

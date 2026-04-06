@@ -369,7 +369,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<UserDto> getUsersByDepartment(String departmentId) throws ApiException {
+    public List<UserDto> getUsersByDepartment(Long departmentId) throws ApiException {
         try {
             List<User> users = userRepository.findByDepartmentIdAndActiveTrue(departmentId);
             log.info("Fetched users for department {}, total size: {}", departmentId, users.size());

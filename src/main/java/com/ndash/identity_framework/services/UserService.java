@@ -19,5 +19,5 @@ public interface UserService {
     UserDto updateUser(Long userId, UserDto userDto) throws ApiException;
 
     void resetPassword(Long userId, ResetPasswordRequest request, Jwt jwt) throws ApiException;
-    List<UserDto> getUsersByDepartment(String departmentId) throws ApiException;
+    List<UserDto> getUsersByDepartment(Long departmentId) throws ApiException;
 }
