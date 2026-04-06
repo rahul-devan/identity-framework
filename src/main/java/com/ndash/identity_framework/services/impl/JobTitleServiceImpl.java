@@ -35,6 +35,7 @@ public class JobTitleServiceImpl implements JobTitleService {
 
         return repository.findAll()
                 .stream()
+                .filter(jobTitle -> !jobTitle.getName().equalsIgnoreCase("UNKNOWN"))
                 .map(mapper::toResponse)
                 .toList();
     }
