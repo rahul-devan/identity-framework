@@ -19,6 +19,9 @@ public class Role {
     @Column(unique = true)
     private String name;
 
+    @Column
+    private String description;
+
     @OneToMany(mappedBy = "role", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private Set<UserRole> userRoles = new HashSet<>();
 }

@@ -15,6 +15,7 @@ public class RoleMapper {
         RoleDto dto = new RoleDto();
         dto.setId(role.getId());
         dto.setName(role.getName());
+        dto.setDescription(role.getDescription());
         return dto;
     }
 
