@@ -13,4 +13,6 @@ public interface DelegateService {
     void actOnRequest(Long requestId, Long approverId, DelegateActionDTO dto);
 
     List<?> getDelegatedUsers(Long userId);
+
+    List<DelegateRequestResponseDTO> getMyRequests(Long userId);
 }

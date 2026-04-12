@@ -13,4 +13,5 @@ public interface DelegateRequestRepository extends JpaRepository<DelegateRequest
     List<DelegateRequest> findByTargetDepartmentIdAndStatus(Long deptId, RequestStatus status);
 
     boolean existsByRequesterIdAndTargetDepartmentIdAndStatus(Long requesterId, Long deptId, RequestStatus status);
+
 }

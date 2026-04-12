@@ -65,4 +65,13 @@ public class DelegateController {
                         delegateService.getDelegatedUsers(userId), null)
         );
     }
+
+    @GetMapping("/my-requests")
+    public ResponseEntity<ApiResponse<List<DelegateRequestResponseDTO>>> getMyRequests(@AuthenticationPrincipal Jwt jwt) {
+
+        return ResponseEntity.ok(
+                new ApiResponse<>("Success", 200,
+                        delegateService.getMyRequests(jwt.getClaim("userId")), null)
+        );
+    }
 }

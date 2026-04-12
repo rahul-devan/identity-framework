@@ -97,4 +97,20 @@ public class DelegateServiceImpl implements DelegateService {
 
         return userRepository.findByDepartmentIdIn(deptIds);
     }
+
+    @Override
+    public List<DelegateRequestResponseDTO> getMyRequests(Long userId) {
+
+        return delegateRequestRepository.findByRequesterId(userId)
+                .stream()
+                .map(req -> DelegateRequestResponseDTO.builder()
+                        .id(req.getId())
+                        .requesterName(req.getRequester().getFirstName() + " " + req.getRequester().getLastName())
+                        .departmentName(req.getTargetDepartment().getName())
+                        .status(req.getStatus().name())
+                        .comments(req.getComments())
+                        .requestedAt(req.getRequestedAt())
+                        .build()
+                ).toList();
+    }
 }
