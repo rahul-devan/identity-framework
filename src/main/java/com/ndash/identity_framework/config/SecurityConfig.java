@@ -41,7 +41,8 @@ public class SecurityConfig {
                                 "/api/users/**",
                                 "/api/blueprints/**",
                                 "/api/job-titles/**",
-                                "/api/departments/**"
+                                "/api/departments/**",
+                                "/api/delegates/**"
                         ).
                         authenticated()
                         .anyRequest().permitAll()
