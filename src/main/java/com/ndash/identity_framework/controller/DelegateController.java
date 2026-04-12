@@ -4,6 +4,8 @@ import com.ndash.identity_framework.dto.*;
 import com.ndash.identity_framework.services.DelegateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,10 +21,9 @@ public class DelegateController {
     // 🔹 Submit request
     @PostMapping("/request")
     public ResponseEntity<ApiResponse<Void>> createRequest(
-            @RequestParam Long userId,
-            @RequestBody DelegateRequestDTO dto) {
+            @RequestBody DelegateRequestDTO dto, @AuthenticationPrincipal Jwt jwt) {
 
-        delegateService.createRequest(userId, dto);
+        delegateService.createRequest(jwt.getClaim("userId"), dto);
 
         return ResponseEntity.ok(
                 new ApiResponse<>("Request submitted", 200, null, null)
