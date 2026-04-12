@@ -45,10 +45,10 @@ public class DelegateController {
     @PostMapping("/{id}/action")
     public ResponseEntity<ApiResponse<Void>> actOnRequest(
             @PathVariable Long id,
-            @RequestParam Long approverId,
-            @RequestBody DelegateActionDTO dto) {
+            @RequestBody DelegateActionDTO dto,
+            @AuthenticationPrincipal Jwt jwt) {
 
-        delegateService.actOnRequest(id, approverId, dto);
+        delegateService.actOnRequest(id, jwt.getClaim("userId"), dto);
 
         return ResponseEntity.ok(
                 new ApiResponse<>("Action completed", 200, null, null)
