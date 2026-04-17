@@ -58,11 +58,15 @@ public class DelegateController {
     // 🔹 Get delegated users (UI screen)
     @GetMapping("/users")
     public ResponseEntity<ApiResponse<List<?>>> getDelegatedUsers(
-            @RequestParam Long userId) {
+            @AuthenticationPrincipal Jwt jwt) {
 
         return ResponseEntity.ok(
-                new ApiResponse<>("Success", 200,
-                        delegateService.getDelegatedUsers(userId), null)
+                new ApiResponse<>(
+                        "Success",
+                        200,
+                        delegateService.getDelegatedUsers(jwt.getClaim("userId")),
+                        null
+                )
         );
     }
 

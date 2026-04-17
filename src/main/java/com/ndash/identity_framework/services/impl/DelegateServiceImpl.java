@@ -88,14 +88,25 @@ public class DelegateServiceImpl implements DelegateService {
     }
 
     @Override
-    public List<User> getDelegatedUsers(Long userId) {
+    public List<DelegatedUserDto> getDelegatedUsers(Long userId) {
 
         List<Long> deptIds = accessRepository.findByUserId(userId)
                 .stream()
                 .map(a -> a.getDepartment().getId())
                 .toList();
 
-        return userRepository.findByDepartmentIdIn(deptIds);
+        return userRepository.findByDepartmentIdIn(deptIds)
+                .stream()
+                .map(user -> new DelegatedUserDto(
+                        user.getId(),
+                        user.getFirstName() + " " + user.getLastName(),
+                        user.getEmail(),
+                        user.getFirstName() + " " + user.getLastName(),
+                        user.getJobTitleName(),
+                        user.getAzureId(),
+                        user.getDepartment().getName()
+                ))
+                .toList();
     }
 
     @Override
