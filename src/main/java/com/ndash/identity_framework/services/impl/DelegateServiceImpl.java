@@ -102,6 +102,8 @@ public class DelegateServiceImpl implements DelegateService {
                         user.getFirstName() + " " + user.getLastName(),
                         user.getEmail(),
                         user.getFirstName() + " " + user.getLastName(),
+                        user.getFirstName(),
+                        user.getLastName(),
                         user.getJobTitleName(),
                         user.getAzureId(),
                         user.getDepartment().getName()

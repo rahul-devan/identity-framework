@@ -5,6 +5,8 @@ public record DelegatedUserDto(
         String username,
         String email,
         String fullName,
+        String firstName,
+        String lastName,
         String jobTitle,
         String azureId,
         String departmentName)
