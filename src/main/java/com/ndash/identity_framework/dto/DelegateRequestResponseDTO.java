@@ -15,4 +15,6 @@ public class DelegateRequestResponseDTO {
     private String status;
     private String comments;
     private LocalDateTime requestedAt;
+    private String actionedByName;
+    private LocalDateTime actionedAt;
 }
