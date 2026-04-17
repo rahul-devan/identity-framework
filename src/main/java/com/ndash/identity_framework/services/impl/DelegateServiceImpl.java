@@ -123,6 +123,8 @@ public class DelegateServiceImpl implements DelegateService {
                         .status(req.getStatus().name())
                         .comments(req.getComments())
                         .requestedAt(req.getRequestedAt())
+                        .actionedAt(req.getActionedAt() != null ? req.getActionedAt() : null)
+                        .actionedByName(req.getActionedBy() != null ? req.getActionedBy().getFirstName() + " " + req.getActionedBy().getLastName() : "")
                         .build()
                 ).toList();
     }
