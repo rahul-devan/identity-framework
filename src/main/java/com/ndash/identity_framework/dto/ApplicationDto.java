@@ -10,6 +10,7 @@ public class ApplicationDto {
     private String name;
     private String description;
     private String appUrl;
+    private String integrationName;
     private boolean active;
 }
 

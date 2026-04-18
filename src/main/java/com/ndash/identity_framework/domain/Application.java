@@ -36,6 +36,9 @@ public class Application {
     @Column(name = "updated_at")
     private java.time.LocalDateTime updatedAt;
 
+    @Column(name = "integration_name")
+    private String integrationName;
+
     @PrePersist
     protected void onCreate() {
         createdAt = java.time.LocalDateTime.now();

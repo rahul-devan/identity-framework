@@ -12,6 +12,7 @@ public class ApplicationMapper {
                 .name(app.getName())
                 .description(app.getDescription())
                 .appUrl(app.getAppUrl())
+                .integrationName(app.getIntegrationName())
                 .active(app.isActive())
                 .build();
     }
