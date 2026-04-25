@@ -78,4 +78,16 @@ public class DelegateController {
                         delegateService.getMyRequests(jwt.getClaim("userId")), null)
         );
     }
+
+    @PostMapping("/revoke")
+    public ResponseEntity<?> revokeDelegate(@RequestBody RevokeRequest request, @AuthenticationPrincipal Jwt jwt) {
+
+        delegateService.revokeDelegate(
+                request.getRequesterId(),
+                request.getTargetDepartmentId(),
+                request.getComments(),
+                jwt.getClaim("userId")
+        );
+        return ResponseEntity.ok().body("Delegation revoked successfully");
+    }
 }

@@ -10,4 +10,5 @@ public interface UserDepartmentAccessRepository extends JpaRepository<UserDepart
     List<UserDepartmentAccess> findByUserId(Long userId);
 
     boolean existsByUserIdAndDepartmentId(Long userId, Long departmentId);
+    void deleteByUserIdAndDepartmentId(Long userId, Long departmentId);
 }

@@ -4,10 +4,12 @@ import com.ndash.identity_framework.domain.*;
 import com.ndash.identity_framework.domain.enums.RequestStatus;
 import com.ndash.identity_framework.dto.*;
 import com.ndash.identity_framework.dto.DelegateRequestDTO;
+import com.ndash.identity_framework.exception.ApiException;
 import com.ndash.identity_framework.repositories.*;
 import com.ndash.identity_framework.services.DelegateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -106,6 +108,7 @@ public class DelegateServiceImpl implements DelegateService {
                         user.getLastName(),
                         user.getJobTitleName(),
                         user.getAzureId(),
+                        user.getDepartment().getId(),
                         user.getDepartment().getName()
                 ))
                 .toList();
@@ -127,5 +130,37 @@ public class DelegateServiceImpl implements DelegateService {
                         .actionedByName(req.getActionedBy() != null ? req.getActionedBy().getFirstName() + " " + req.getActionedBy().getLastName() : "")
                         .build()
                 ).toList();
+    }
+
+    @Override
+    @Transactional
+    public void revokeDelegate(Long requesterId, Long departmentId, String comments, Long actionedById) {
+
+        User currentUser = userRepository.findById(actionedById)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        DelegateRequest request = delegateRequestRepository
+                .findByRequesterIdAndTargetDepartmentIdAndStatus(
+                        requesterId,
+                        departmentId,
+                        RequestStatus.APPROVED
+                )
+                .orElseThrow(() -> new RuntimeException("No active delegation found"));
+
+        // 👇 SIMPLE check (not heavy)
+        if (!request.getRequester().getId().equals(currentUser.getId())
+                && (request.getActionedBy() == null ||
+                !request.getActionedBy().getId().equals(currentUser.getId()))) {
+
+            throw new RuntimeException("Not allowed to revoke");
+        }
+
+        request.setStatus(RequestStatus.REVOKED);
+        request.setComments(comments);
+        request.setActionedAt(LocalDateTime.now());
+        request.setActionedBy(currentUser);
+
+        delegateRequestRepository.save(request);
+        accessRepository.deleteByUserIdAndDepartmentId(requesterId, departmentId);
     }
 }

@@ -15,4 +15,5 @@ public interface DelegateService {
     List<?> getDelegatedUsers(Long userId);
 
     List<DelegateRequestResponseDTO> getMyRequests(Long userId);
+    void revokeDelegate(Long requesterId, Long departmentId, String comments, Long actionedById);
 }

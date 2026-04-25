@@ -4,6 +4,7 @@ import com.ndash.identity_framework.domain.Role;
 import com.ndash.identity_framework.domain.User;
 import com.ndash.identity_framework.domain.UserRole;
 import com.ndash.identity_framework.dto.ResetPasswordRequest;
+import com.ndash.identity_framework.dto.SimpleUserDto;
 import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.exception.ApiException;
 import com.ndash.identity_framework.helper.AzureUserUpdater;
@@ -131,9 +132,15 @@ public class UserServiceImpl implements UserService {
         try {
             List<User> users = userRepository.findAll();
             log.info("Fetched all users, total size: {}", users.size());
+
             return users.stream()
-                    .map(UserMapper::toDto)
+                    .map(user -> {
+                        UserDto dto = UserMapper.toDto(user);
+                        dto.setSubordinates(getSubordinates(user.getId())); // 👈 here
+                        return dto;
+                    })
                     .collect(Collectors.toList());
+
         } catch (Exception ex){
             log.error("Exception occurred while fetching users: {}", ex.getMessage());
             throw new ApiException(ex.getMessage());
@@ -142,9 +149,16 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDto getUserById(Long id) {
-        return userRepository.findById(id)
-                .map(UserMapper::toDto)
+
+        User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        UserDto dto = UserMapper.toDto(user);
+
+        // 👇 Add subordinates here
+        dto.setSubordinates(getSubordinates(user.getId()));
+
+        return dto;
     }
 
 
@@ -225,11 +239,38 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Page<UserDto> searchUsersByUsername(String username, int page, int size) {
+
         Pageable pageable = PageRequest.of(page, size, Sort.by("username").ascending());
 
-        Page<User> userPage = userRepository.findByUsernameContainingIgnoreCaseAndActiveTrue(username, pageable);
+        Page<User> userPage =
+                userRepository.findByUsernameContainingIgnoreCaseAndActiveTrue(username, pageable);
 
-        return userPage.map(UserMapper::toDto);  // Converts each User to UserDto
+        // 👇 Fetch all users once
+        List<User> allUsers = userRepository.findAll();
+
+        Map<Long, List<User>> subMap = allUsers.stream()
+                .filter(u -> u.getManager() != null)
+                .collect(Collectors.groupingBy(u -> u.getManager().getId()));
+
+        return userPage.map(user -> {
+            UserDto dto = UserMapper.toDto(user);
+
+            List<User> subs = subMap.getOrDefault(user.getId(), Collections.emptyList());
+
+            Set<SimpleUserDto> subDtos = subs.stream()
+                    .map(u -> {
+                        SimpleUserDto s = new SimpleUserDto();
+                        s.setId(u.getId());
+                        s.setFirstName(u.getFirstName());
+                        s.setLastName(u.getLastName());
+                        s.setEmail(u.getEmail());
+                        return s;
+                    })
+                    .collect(Collectors.toSet());
+
+            dto.setSubordinates(subDtos);
+            return dto;
+        });
     }
 
 
@@ -272,11 +313,11 @@ public class UserServiceImpl implements UserService {
                 existingUser.setEmail(userDto.getEmail());
             }
 
-            if(userDto.getDob() != null){
+            if (userDto.getDob() != null) {
                 existingUser.setDob(userDto.getDob());
             }
 
-            if(userDto.getSsn() != null){
+            if (userDto.getSsn() != null) {
                 existingUser.setSsn(userDto.getSsn());
             }
 
@@ -376,7 +417,7 @@ public class UserServiceImpl implements UserService {
             return users.stream()
                     .map(UserMapper::toDto)
                     .collect(Collectors.toList());
-        } catch (Exception ex){
+        } catch (Exception ex) {
             log.error("Exception occurred while fetching users by department: {}", ex.getMessage());
             throw new ApiException(ex.getMessage());
         }
@@ -405,6 +446,20 @@ public class UserServiceImpl implements UserService {
                 roleRepository.save(newRole);
             }
         }
+    }
+
+    private Set<SimpleUserDto> getSubordinates(Long userId) {
+
+        return userRepository.findByManagerId(userId).stream()
+                .map(u -> {
+                    SimpleUserDto dto = new SimpleUserDto();
+                    dto.setId(u.getId());
+                    dto.setFirstName(u.getFirstName());
+                    dto.setLastName(u.getLastName());
+                    dto.setEmail(u.getEmail());
+                    return dto;
+                })
+                .collect(Collectors.toSet());
     }
 
 }

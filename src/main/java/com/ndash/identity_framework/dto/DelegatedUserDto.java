@@ -9,5 +9,6 @@ public record DelegatedUserDto(
         String lastName,
         String jobTitle,
         String azureId,
+        Long departmentId,
         String departmentName)
 {}

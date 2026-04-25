@@ -42,7 +42,9 @@ public class SecurityConfig {
                                 "/api/blueprints/**",
                                 "/api/job-titles/**",
                                 "/api/departments/**",
-                                "/api/delegates/**"
+                                "/api/delegates/**",
+                                "/api/settings/**",
+                                "/api/companies/**"
                         ).
                         authenticated()
                         .anyRequest().permitAll()

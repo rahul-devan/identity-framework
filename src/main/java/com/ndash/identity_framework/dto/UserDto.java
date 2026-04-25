@@ -28,5 +28,6 @@ public class UserDto {
     private String departmentId;   // For filtering by department
     private String jobTitleName;
     private Long jobTitleId;
+    private Set<SimpleUserDto> subordinates;
 
 }

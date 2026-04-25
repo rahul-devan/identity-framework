@@ -96,6 +96,13 @@ public class User {
     @ManyToOne
     @JoinColumn(name = "job_title_id")
     private JobTitle jobTitle;
+
+    @ManyToOne
+    @JoinColumn(name = "manager_id")
+    private User manager;
+
+    @OneToMany(mappedBy = "manager")
+    private Set<User> subordinates = new HashSet<>();
 }
 
 
