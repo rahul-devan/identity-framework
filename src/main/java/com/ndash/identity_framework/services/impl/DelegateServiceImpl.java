@@ -119,6 +119,7 @@ public class DelegateServiceImpl implements DelegateService {
 
         return delegateRequestRepository.findByRequesterId(userId)
                 .stream()
+                .filter(req -> req.getStatus() != RequestStatus.REVOKED)
                 .map(req -> DelegateRequestResponseDTO.builder()
                         .id(req.getId())
                         .requesterName(req.getRequester().getFirstName() + " " + req.getRequester().getLastName())
