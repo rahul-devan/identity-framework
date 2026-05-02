@@ -2,7 +2,9 @@ package com.ndash.identity_framework.services.impl;
 
 import com.ndash.identity_framework.domain.Role;
 import com.ndash.identity_framework.domain.User;
+import com.ndash.identity_framework.domain.UserApplication;
 import com.ndash.identity_framework.domain.UserRole;
+import com.ndash.identity_framework.domain.enums.UserSource;
 import com.ndash.identity_framework.dto.ResetPasswordRequest;
 import com.ndash.identity_framework.dto.SimpleUserDto;
 import com.ndash.identity_framework.dto.UserDto;
@@ -10,9 +12,11 @@ import com.ndash.identity_framework.exception.ApiException;
 import com.ndash.identity_framework.helper.AzureUserUpdater;
 import com.ndash.identity_framework.mapper.UserMapper;
 import com.ndash.identity_framework.repositories.RoleRepository;
+import com.ndash.identity_framework.repositories.UserApplicationRepository;
 import com.ndash.identity_framework.repositories.UserRepository;
 import com.ndash.identity_framework.services.AzureADService;
 import com.ndash.identity_framework.services.UserService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,6 +33,7 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 @Slf4j
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
@@ -36,14 +41,7 @@ public class UserServiceImpl implements UserService {
     private final AzureADService azureADService;
     private final AzureUserUpdater azureUserUpdater;
     private final PasswordEncoder passwordEncoder;
-
-    public UserServiceImpl(UserRepository userRepository, RoleRepository roleRepository, AzureADService azureADService, AzureUserUpdater azureUserUpdater, PasswordEncoder passwordEncoder) {
-        this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
-        this.azureADService = azureADService;
-        this.azureUserUpdater = azureUserUpdater;
-        this.passwordEncoder = passwordEncoder;
-    }
+    private final UserApplicationRepository userApplicationRepository;
 
     @Override
     public UserDto createUser(UserDto userDto) throws ApiException {
@@ -141,7 +139,7 @@ public class UserServiceImpl implements UserService {
                     })
                     .collect(Collectors.toList());
 
-        } catch (Exception ex){
+        } catch (Exception ex) {
             log.error("Exception occurred while fetching users: {}", ex.getMessage());
             throw new ApiException(ex.getMessage());
         }
@@ -149,16 +147,33 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDto getUserById(Long id) {
+        try {
 
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            User user = userRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-        UserDto dto = UserMapper.toDto(user);
+            List<UserApplication> applications = userApplicationRepository.findByUserIdAndActiveTrue(id);
 
-        // 👇 Add subordinates here
-        dto.setSubordinates(getSubordinates(user.getId()));
+            UserDto dto = UserMapper.toDto(user);
 
-        return dto;
+            // 👇 Add subordinates here
+            dto.setSubordinates(getSubordinates(user.getId()));
+
+            // --------------------------------------
+            // Main user applications
+            // --------------------------------------
+            dto.setApplications(
+                    userApplicationRepository.findByUserIdAndActiveTrue(user.getId())
+                            .stream()
+                            .map(UserMapper::toUserApplicationDto)
+                            .toList()
+            );
+
+            return dto;
+        }catch (Exception ex) {
+            log.error("Exception occurred while fetching user by id: {}", ex.getMessage());
+            throw new RuntimeException(ex.getMessage());
+        }
     }
 
 
@@ -323,22 +338,48 @@ public class UserServiceImpl implements UserService {
 
             // 4. Update roles
             if (userDto.getRoles() != null && !userDto.getRoles().isEmpty()) {
+                // 1. Fetch all requested roles in one query
+                Set<String> requestedRoleNames = new HashSet<>(userDto.getRoles());
 
-                Set<Role> roles = userDto.getRoles().stream()
-                        .map(roleName -> roleRepository.findByName(roleName)
-                                .orElseThrow(() -> new RuntimeException("Role not found: " + roleName)))
+                Set<Role> requestedRoles = new HashSet<>(
+                        roleRepository.findByNameIn(requestedRoleNames)
+                );
+
+                if (requestedRoles.size() != requestedRoleNames.size()) {
+                    throw new RuntimeException("One or more roles are invalid");
+                }
+
+                // 2. Existing mappings
+                Set<UserRole> existingUserRoles = existingUser.getUserRoles();
+
+                // 3. Requested role IDs
+                Set<Long> requestedRoleIds = requestedRoles.stream()
+                        .map(Role::getId)
                         .collect(Collectors.toSet());
 
-                existingUser.getUserRoles().clear();
+                // 4. Remove roles no longer selected
+                existingUserRoles.removeIf(
+                        userRole -> !requestedRoleIds.contains(userRole.getRole().getId())
+                );
 
-                Set<UserRole> userRoles = roles.stream().map(role -> {
-                    UserRole ur = new UserRole();
-                    ur.setUser(existingUser);
-                    ur.setRole(role);
-                    return ur;
-                }).collect(Collectors.toSet());
+                // 5. Existing role IDs after cleanup
+                Set<Long> existingRoleIds = existingUserRoles.stream()
+                        .map(userRole -> userRole.getRole().getId())
+                        .collect(Collectors.toSet());
 
-                existingUser.setUserRoles(userRoles);
+                // 6. Add only missing roles
+                for (Role role : requestedRoles) {
+                    if (!existingRoleIds.contains(role.getId())) {
+                        UserRole userRole = new UserRole();
+                        userRole.setUser(existingUser);
+                        userRole.setRole(role);
+                        existingUserRoles.add(userRole);
+                    }
+                }
+            }
+            if (Objects.isNull(existingUser.getSource())) {
+                UserSource source = existingUser.getAzureId() != null ? UserSource.ENTRA : UserSource.APP;
+                existingUser.setSource(source);
             }
 
             // 5. Save
@@ -423,6 +464,24 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    @Override
+    public List<UserDto> getAllManagers() throws ApiException {
+        try {
+
+            List<User> managers = userRepository.findAllManagers();
+
+            return managers.stream()
+                    .map(UserMapper::toDto)
+                    .toList();
+
+        } catch (Exception ex) {
+
+            log.error("Exception occurred while fetching managers: {}", ex.getMessage(), ex);
+
+            throw new ApiException("Failed to fetch manager users");
+        }
+    }
+
 
     private String getFirstName(String displayName) {
         if (displayName == null) return "";
@@ -450,7 +509,7 @@ public class UserServiceImpl implements UserService {
 
     private Set<SimpleUserDto> getSubordinates(Long userId) {
 
-        return userRepository.findByManagerId(userId).stream()
+        return userRepository.findByManagerId(userId).stream().filter(User::isActive)
                 .map(u -> {
                     SimpleUserDto dto = new SimpleUserDto();
                     dto.setId(u.getId());

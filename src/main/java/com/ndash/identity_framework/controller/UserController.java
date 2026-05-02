@@ -96,5 +96,16 @@ public class UserController {
                 ApiResponse.success("Password updated successfully", HttpStatus.OK.value())
         );
     }
+
+    @GetMapping("/managers")
+    public ResponseEntity<ApiResponse<List<UserDto>>> getAllManagers(
+            @AuthenticationPrincipal Jwt jwt) throws ApiException {
+
+        List<UserDto> managers = userService.getAllManagers();
+
+        return ResponseEntity.ok(
+                ApiResponse.success(managers, HttpStatus.OK.value())
+        );
+    }
 }
 

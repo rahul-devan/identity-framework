@@ -10,12 +10,14 @@ import org.springframework.data.repository.query.Param;
 import javax.swing.text.html.Option;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface RoleRepository extends JpaRepository<Role, Long> {
     Optional<Role> findByName(String name);
     Page<Role> findByNameContainingIgnoreCase(String name, Pageable pageable);
     List<Role> findByNameContainingIgnoreCase(String name);
     boolean existsByName(String name);
+    List<Role> findByNameIn(Set<String> names);
 
 //    // Only for detail view
 //    @Query("SELECT r FROM Role r LEFT JOIN FETCH r.users u WHERE r.id = :roleId AND u.active = true")

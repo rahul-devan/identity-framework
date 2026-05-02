@@ -2,20 +2,26 @@ package com.ndash.identity_framework.services;
 
 import com.ndash.identity_framework.domain.Application;
 import com.ndash.identity_framework.dto.ApplicationDto;
+import com.ndash.identity_framework.dto.UserApplicationDto;
 import com.ndash.identity_framework.mapper.ApplicationMapper;
 import com.ndash.identity_framework.repositories.ApplicationRepository;
+import com.ndash.identity_framework.repositories.UserApplicationRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class ApplicationService {
 
     private final ApplicationRepository applicationRepository;
+    private final UserApplicationRepository userApplicationRepository;
 
-    public ApplicationService(ApplicationRepository applicationRepository) {
+    public ApplicationService(ApplicationRepository applicationRepository, UserApplicationRepository userApplicationRepository) {
         this.applicationRepository = applicationRepository;
+        this.userApplicationRepository = userApplicationRepository;
     }
 
     public Page<ApplicationDto> searchApplicationsByName(String name, int page, int size) {
@@ -37,6 +43,21 @@ public class ApplicationService {
         Application app = applicationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Application not found with id: " + id));
         return ApplicationMapper.toDto(app);
+    }
+
+
+    public List<UserApplicationDto> getUserApplications(Long userId) {
+        return userApplicationRepository.findByUserIdAndActiveTrue(userId)
+                .stream()
+                .map(ua -> {
+                    UserApplicationDto dto = new UserApplicationDto();
+                    dto.setId(ua.getId());
+                    dto.setApplicationId(ua.getApplication().getId());
+                    dto.setActive(ua.isActive());
+                    dto.setName(ua.getApplication().getName());
+                    return dto;
+                })
+                .toList();
     }
 }
 

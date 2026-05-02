@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 @Data
@@ -29,5 +30,6 @@ public class UserDto {
     private String jobTitleName;
     private Long jobTitleId;
     private Set<SimpleUserDto> subordinates;
+    private List<UserApplicationDto> applications;
 
 }

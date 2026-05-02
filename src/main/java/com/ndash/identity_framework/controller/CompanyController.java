@@ -2,9 +2,12 @@ package com.ndash.identity_framework.controller;
 
 import com.ndash.identity_framework.dto.CompanyRequestDto;
 import com.ndash.identity_framework.dto.CompanyResponseDto;
+import com.ndash.identity_framework.exception.ApiException;
 import com.ndash.identity_framework.services.CompanyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,8 +21,8 @@ public class CompanyController {
     private final CompanyService service;
 
     @PostMapping
-    public ResponseEntity<?> create(@RequestBody CompanyRequestDto dto) {
-        service.createCompany(dto);
+    public ResponseEntity<?> create(@RequestBody CompanyRequestDto dto, @AuthenticationPrincipal Jwt jwt) throws ApiException {
+        service.createCompany(dto, jwt.getClaim("userId"));
         return ResponseEntity.ok("Created");
     }
 

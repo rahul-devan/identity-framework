@@ -13,6 +13,7 @@ public class CompanyResponseDto {
     private String phoneNumber;
 
     private String approverName;
+    private Long approverId;
 
     private String contactName;
 }

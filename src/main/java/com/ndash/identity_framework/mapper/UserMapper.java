@@ -1,9 +1,7 @@
 package com.ndash.identity_framework.mapper;
 
-import com.ndash.identity_framework.domain.Role;
-import com.ndash.identity_framework.domain.User;
-import com.ndash.identity_framework.domain.UserRole;
-import com.ndash.identity_framework.domain.UserRoleId;
+import com.ndash.identity_framework.domain.*;
+import com.ndash.identity_framework.dto.UserApplicationDto;
 import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.util.CommonUtil;
 
@@ -55,5 +53,43 @@ public class UserMapper {
 
         user.setUserRoles(userRoles);
         return user;
+    }
+
+    public static UserApplicationDto toUserApplicationDto(UserApplication ua) {
+
+        UserApplicationDto dto = new UserApplicationDto();
+
+        dto.setId(ua.getId());
+
+        dto.setApplicationId(
+                ua.getApplication().getId()
+        );
+
+        dto.setName(
+                ua.getApplication().getName()
+        );
+
+        dto.setDescription(
+                ua.getApplication().getDescription()
+        );
+
+        dto.setAccessLevel("Standard");
+
+        dto.setGrantedDate(
+                ua.getAssignedAt() != null
+                        ? ua.getAssignedAt().toString()
+                        : null
+        );
+
+        dto.setEssential(
+                ua.getApplication().getName().equalsIgnoreCase("Slack")
+                        || ua.getApplication().getName().equalsIgnoreCase("Jira")
+        );
+
+        dto.setActive(
+                ua.isActive()
+        );
+
+        return dto;
     }
 }

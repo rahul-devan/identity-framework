@@ -2,12 +2,15 @@ package com.ndash.identity_framework.controller;
 
 import com.ndash.identity_framework.dto.ApiResponse;
 import com.ndash.identity_framework.dto.ApplicationDto;
+import com.ndash.identity_framework.dto.UserApplicationDto;
 import com.ndash.identity_framework.services.ApplicationService;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @CrossOrigin("*")
 @RestController
@@ -46,6 +49,14 @@ public class ApplicationController {
             @PathVariable Long id){
         ApplicationDto app = applicationService.getApplicationById(id);
         return ResponseEntity.ok(ApiResponse.success(app, 200));
+    }
+
+
+    @GetMapping("/users/{id}")
+    public ResponseEntity<ApiResponse<List<UserApplicationDto>>> getUserApplicationById(
+            @PathVariable Long id){
+        List<UserApplicationDto> userApplications = applicationService.getUserApplications(id);
+        return ResponseEntity.ok(ApiResponse.success(userApplications, 200));
     }
 }
 
