@@ -1,7 +1,6 @@
 package com.ndash.identity_framework.services;
 
 import com.ndash.identity_framework.domain.Company;
-import com.ndash.identity_framework.domain.CompanyContact;
 import com.ndash.identity_framework.domain.User;
 import com.ndash.identity_framework.domain.enums.UserSource;
 import com.ndash.identity_framework.dto.CompanyRequestDto;
@@ -21,7 +20,6 @@ public class CompanyService {
 
     private final CompanyRepository companyRepository;
     private final UserRepository userRepository;
-    private final ApprovalService approvalService;
 
     public void createCompany(CompanyRequestDto dto, Long requestedById) throws ApiException {
 
@@ -54,16 +52,15 @@ public class CompanyService {
         primaryContact.setUsername(dto.getContact().getEmail());
         primaryContact.setPassword(null); // Or temp password
         primaryContact.setSource(UserSource.APP);
-        primaryContact.setManager(requestedBy);
+        primaryContact.setManager(approver);
 
         // IMPORTANT
-        primaryContact.setActive(false);
+        primaryContact.setActive(true);
         company.setPrimaryContact(primaryContact);
 
         userRepository.save(primaryContact);
 
         companyRepository.save(company);
-        approvalService.createCompanyApproval(company, approver, requestedBy);
     }
 
     public List<CompanyResponseDto> getAllCompanies() {

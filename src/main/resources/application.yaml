@@ -1,3 +1,5 @@
+server:
+  port: 8082
 spring:
   application:
     name: identity-framework
@@ -25,7 +27,7 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update       # change to update / validate / create-drop as needed
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
