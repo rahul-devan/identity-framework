@@ -13,7 +13,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/delegates")
 @RequiredArgsConstructor
-@CrossOrigin("*")
 public class DelegateController {
 
     private final DelegateService delegateService;

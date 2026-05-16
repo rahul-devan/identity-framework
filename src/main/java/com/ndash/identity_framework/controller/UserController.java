@@ -15,7 +15,6 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 
-@CrossOrigin("*")
 @RestController
 @RequestMapping("/api/users")
 public class UserController {

@@ -15,7 +15,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/companies")
 @RequiredArgsConstructor
-@CrossOrigin("*")
 public class CompanyController {
 
     private final CompanyService service;
