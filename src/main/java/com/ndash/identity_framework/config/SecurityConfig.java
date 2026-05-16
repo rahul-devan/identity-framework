@@ -81,7 +81,8 @@ public class SecurityConfig {
 
         configuration.setAllowedOrigins(List.of(
                 "https://identityframework.vercel.app",
-                "https://idf.ndashdigital.com/"
+                "https://idf.ndashdigital.com/",
+                "http://localhost:3000/"
         ));
 
         configuration.setAllowedMethods(List.of(
