@@ -2,9 +2,11 @@ package com.ndash.identity_framework.services;
 
 import com.ndash.identity_framework.domain.Company;
 import com.ndash.identity_framework.domain.User;
+import com.ndash.identity_framework.domain.enums.RequestStatus;
 import com.ndash.identity_framework.domain.enums.UserSource;
 import com.ndash.identity_framework.dto.CompanyRequestDto;
 import com.ndash.identity_framework.dto.CompanyResponseDto;
+import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.exception.ApiException;
 import com.ndash.identity_framework.repositories.CompanyRepository;
 import com.ndash.identity_framework.repositories.UserRepository;
@@ -20,6 +22,7 @@ public class CompanyService {
 
     private final CompanyRepository companyRepository;
     private final UserRepository userRepository;
+    private final UserService userService;
 
     public void createCompany(CompanyRequestDto dto, Long requestedById) throws ApiException {
 
@@ -32,6 +35,7 @@ public class CompanyService {
         company.setName(dto.getName());
         company.setLocation(dto.getLocation());
         company.setPhoneNumber(dto.getPhoneNumber());
+        company.setStatus(RequestStatus.APPROVED);
 
         User approver = userRepository.findById(dto.getApproverId())
                 .orElseThrow();
@@ -40,7 +44,7 @@ public class CompanyService {
         // -----------------------------
         // Primary Contact User (Inactive until approval)
         // -----------------------------
-        User primaryContact = new User();
+        UserDto primaryContact = new UserDto();
         primaryContact.setFirstName(dto.getContact().getFirstName());
         primaryContact.setLastName(dto.getContact().getLastName());
         primaryContact.setEmail(dto.getContact().getEmail());
@@ -50,15 +54,17 @@ public class CompanyService {
 
         // Optional defaults
         primaryContact.setUsername(dto.getContact().getEmail());
-        primaryContact.setPassword(null); // Or temp password
         primaryContact.setSource(UserSource.APP);
-        primaryContact.setManager(approver);
+        primaryContact.setManager(approver.getId());
 
         // IMPORTANT
-        primaryContact.setActive(true);
-        company.setPrimaryContact(primaryContact);
 
-        userRepository.save(primaryContact);
+
+        UserDto saved = userService.createUser(primaryContact);
+        User companyContact = userRepository.findById(saved.getId()).orElse(null);
+        if(null != companyContact) {
+            company.setPrimaryContact(companyContact);
+        }
 
         companyRepository.save(company);
     }

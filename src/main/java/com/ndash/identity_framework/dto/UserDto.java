@@ -2,6 +2,7 @@ package com.ndash.identity_framework.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.ndash.identity_framework.domain.enums.UserSource;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -31,5 +32,7 @@ public class UserDto {
     private Long jobTitleId;
     private Set<SimpleUserDto> subordinates;
     private List<UserApplicationDto> applications;
+    private UserSource source;
+    private Long manager;
 
 }

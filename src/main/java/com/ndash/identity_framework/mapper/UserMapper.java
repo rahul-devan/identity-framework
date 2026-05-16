@@ -50,7 +50,7 @@ public class UserMapper {
             ur.setId(new UserRoleId(user.getId(), role.getId()));
             return ur;
         }).collect(Collectors.toSet());
-
+        user.setSource(dto.getSource());
         user.setUserRoles(userRoles);
         return user;
     }

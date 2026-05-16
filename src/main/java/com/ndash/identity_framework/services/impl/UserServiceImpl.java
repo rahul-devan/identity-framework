@@ -115,10 +115,11 @@ public class UserServiceImpl implements UserService {
             }
             // 4. Convert DTO -> Entity
             User user = UserMapper.toEntity(userDto, assignedRoles);
-//            user.setAzureId(azureUser.id);
-//            user.setUsername(azureUser.userPrincipalName);
+            user.setManager(userRepository.findById(userDto.getManager()).orElse(null));
+            user.setAzureId(azureUser != null ? azureUser.id : null);
+            user.setUsername(userDto.getEmail());
             user.setActive(true);
-            user.setPassword("Test123");
+            user.setPassword(passwordEncoder.encode("Test@123"));
 
             // 7. Save to DB
             User savedUser = userRepository.save(user);
