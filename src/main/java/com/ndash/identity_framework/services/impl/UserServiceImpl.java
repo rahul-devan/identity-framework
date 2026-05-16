@@ -81,18 +81,25 @@ public class UserServiceImpl implements UserService {
                 user.setUserRoles(Set.of(userRole));
 
                 User savedUser = userRepository.save(user);
+                if(savedUser.getAzureId() == null){
+                    com.microsoft.graph.models.User azureUser =
+                            azureADService.createUser(userDto.getFirstName(), userDto.getEmail());
+                    if (azureUser == null || azureUser.id == null) {
+                        log.error("ERROR Creating user in azure for user: {}", userDto.getEmail());
+                    }
+                }
                 log.info("User already present in azure, synced to database");
                 return UserMapper.toDto(savedUser);
             }
 
-            // 3. Create new user in Azure AD
-//            com.microsoft.graph.models.User azureUser =
-//                    azureADService.createUser(userDto.getFirstName(), userDto.getEmail());
-//
-//            if (azureUser == null || azureUser.id == null) {
-//                throw new RuntimeException("Failed to create user in Azure AD");
-//            }
-//            log.info("User created in Azure AD");
+//             3. Create new user in Azure AD
+            com.microsoft.graph.models.User azureUser =
+                    azureADService.createUser(userDto.getFirstName(), userDto.getEmail());
+
+            if (azureUser == null || azureUser.id == null) {
+                log.error("ERROR Creating user in azure for user: {}", userDto.getEmail());
+            }
+            log.info("User created in Azure AD");
 
             // 5. Resolve roles
             Set<Role> assignedRoles;
