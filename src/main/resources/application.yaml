@@ -34,8 +34,8 @@ spring:
 
 azure:
   tenant-id: db067b07-979a-4dfa-8f65-2f7e2ed9201d
-  client-id: 7cb28d5a-79cf-4220-b9b9-2340718afcff
-  client-secret: sdo8Q~JRYJ3fjPX5A922cqLX.5cnnvS.qIfUbaQt
+  client-id: 2fea369b-c5a4-40b3-8bbf-4634463719fd
+  client-secret: 9sk8Q~Z66a0Z-jyQiaB0Z6wURBeMNkJLx5QMUarh
   graph:
     scope: https://graph.microsoft.com/.default
 
