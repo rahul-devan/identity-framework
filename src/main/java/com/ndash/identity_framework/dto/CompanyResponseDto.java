@@ -2,8 +2,10 @@ package com.ndash.identity_framework.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
 @AllArgsConstructor
 public class CompanyResponseDto {
 
@@ -15,5 +17,6 @@ public class CompanyResponseDto {
     private String approverName;
     private Long approverId;
 
+    private Long primaryContactId;
     private String contactName;
 }

@@ -84,8 +84,7 @@ public class User {
     // -----------------------------
     @OneToMany(mappedBy = "user",
             cascade = CascadeType.ALL,
-            orphanRemoval = true,
-            fetch = FetchType.LAZY)
+            orphanRemoval = true)
     private Set<UserRole> userRoles = new HashSet<>();
 
 

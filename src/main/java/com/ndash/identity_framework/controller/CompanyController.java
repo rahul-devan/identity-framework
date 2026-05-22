@@ -42,4 +42,11 @@ public class CompanyController {
         service.deleteCompany(id);
         return ResponseEntity.ok("Deleted");
     }
+
+    @GetMapping("/my")
+    public List<CompanyResponseDto> getMyCompanies(
+            @AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        return service.getMyCompanies(userId);
+    }
 }

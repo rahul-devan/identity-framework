@@ -1,9 +1,6 @@
 package com.ndash.identity_framework.services.impl;
 
-import com.ndash.identity_framework.domain.Role;
-import com.ndash.identity_framework.domain.User;
-import com.ndash.identity_framework.domain.UserApplication;
-import com.ndash.identity_framework.domain.UserRole;
+import com.ndash.identity_framework.domain.*;
 import com.ndash.identity_framework.domain.enums.UserSource;
 import com.ndash.identity_framework.dto.ResetPasswordRequest;
 import com.ndash.identity_framework.dto.SimpleUserDto;
@@ -11,9 +8,7 @@ import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.exception.ApiException;
 import com.ndash.identity_framework.helper.AzureUserUpdater;
 import com.ndash.identity_framework.mapper.UserMapper;
-import com.ndash.identity_framework.repositories.RoleRepository;
-import com.ndash.identity_framework.repositories.UserApplicationRepository;
-import com.ndash.identity_framework.repositories.UserRepository;
+import com.ndash.identity_framework.repositories.*;
 import com.ndash.identity_framework.services.AzureADService;
 import com.ndash.identity_framework.services.UserService;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +37,8 @@ public class UserServiceImpl implements UserService {
     private final AzureUserUpdater azureUserUpdater;
     private final PasswordEncoder passwordEncoder;
     private final UserApplicationRepository userApplicationRepository;
+    private final BlueprintRepository blueprintRepository;
+    private final CompanyRepository companyRepository;
 
     @Override
     public UserDto createUser(UserDto userDto) throws ApiException {
@@ -73,12 +70,49 @@ public class UserServiceImpl implements UserService {
                 user.setPhoneNumber(existingAzureUser.mobilePhone);
                 user.setActive(true);
                 user.setPassword("Test123");
+                user.setSource(UserSource.APP);
 
                 // Assign default role
                 UserRole userRole = new UserRole();
                 userRole.setUser(user);
                 userRole.setRole(defaultRole);
                 user.setUserRoles(Set.of(userRole));
+                Set<Role> assignedRoles;
+                if (userDto.getRoles() != null && !userDto.getRoles().isEmpty()) {
+                    assignedRoles = userDto.getRoles().stream()
+                            .map(roleName -> roleRepository.findByName(roleName).orElse(defaultRole))
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toSet());
+                    Set<UserRole> userRoles = assignedRoles.stream().map(role -> {
+                        UserRole ur = new UserRole();
+                        ur.setUser(user);
+                        ur.setRole(role);
+                        ur.setId(new UserRoleId(user.getId(), role.getId()));
+                        return ur;
+                    }).collect(Collectors.toSet());
+                    user.setUserRoles(userRoles);
+                    log.info("Assigned roles: {}", assignedRoles);
+                }
+
+                if (userDto.getBlueprints() != null && !userDto.getBlueprints().isEmpty()) {
+
+                    String blueprintName = userDto.getBlueprints().get(0);
+
+                    Blueprint blueprint = blueprintRepository
+                            .findByNameIgnoreCase(blueprintName)
+                            .orElseThrow(() -> new RuntimeException("Invalid blueprint"));
+
+                    user.setBlueprint(blueprint);
+                }
+
+                if(userDto.getCompanyId() != null){
+                    Optional<Company> comppany = companyRepository.findById(userDto.getCompanyId());
+                    if(comppany.isPresent()) {
+                        log.info("Company found for user: {}, company name: {}", userDto.getEmail(), comppany.get().getName());
+                        log.info("Manager is: {}", comppany.get().getApprover() != null ? comppany.get().getApprover().getEmail() : "No Manager");
+                        user.setManager(comppany.get().getApprover());
+                    }
+                }
 
                 User savedUser = userRepository.save(user);
                 if(savedUser.getAzureId() == null){
@@ -118,8 +152,29 @@ public class UserServiceImpl implements UserService {
             user.setManager(userRepository.findById(userDto.getManager()).orElse(null));
             user.setAzureId(azureUser != null ? azureUser.id : null);
             user.setUsername(userDto.getEmail());
+            user.setSource(UserSource.APP);
             user.setActive(true);
             user.setPassword(passwordEncoder.encode("Test@123"));
+
+            if (userDto.getBlueprints() != null && !userDto.getBlueprints().isEmpty()) {
+
+                String blueprintName = userDto.getBlueprints().get(0);
+
+                Blueprint blueprint = blueprintRepository
+                        .findByNameIgnoreCase(blueprintName)
+                        .orElseThrow(() -> new RuntimeException("Invalid blueprint"));
+
+                user.setBlueprint(blueprint);
+            }
+
+            if(userDto.getCompanyId() != null){
+                Optional<Company> comppany = companyRepository.findById(userDto.getCompanyId());
+                if(comppany.isPresent()) {
+                    log.info("Company found for user: {}, company name: {}", userDto.getEmail(), comppany.get().getName());
+                    log.info("Manager is: {}", comppany.get().getApprover() != null ? comppany.get().getApprover().getEmail() : "No Manager");
+                    user.setManager(comppany.get().getApprover());
+                }
+            }
 
             // 7. Save to DB
             User savedUser = userRepository.save(user);
@@ -388,6 +443,17 @@ public class UserServiceImpl implements UserService {
             if (Objects.isNull(existingUser.getSource())) {
                 UserSource source = existingUser.getAzureId() != null ? UserSource.ENTRA : UserSource.APP;
                 existingUser.setSource(source);
+            }
+
+            if (userDto.getBlueprints() != null && !userDto.getBlueprints().isEmpty()) {
+
+                String blueprintName = userDto.getBlueprints().get(0);
+
+                Blueprint blueprint = blueprintRepository
+                        .findByNameIgnoreCase(blueprintName)
+                        .orElseThrow(() -> new RuntimeException("Invalid blueprint"));
+
+                existingUser.setBlueprint(blueprint);
             }
 
             // 5. Save

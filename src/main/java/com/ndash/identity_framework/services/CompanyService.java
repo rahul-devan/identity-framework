@@ -80,6 +80,9 @@ public class CompanyService {
                         c.getApprover() != null ? c.getApprover().getFirstName() : null,
                         c.getApprover() != null ? c.getApprover().getId() : null,
                         c.getPrimaryContact() != null
+                                ? c.getPrimaryContact().getId()
+                                : null,
+                        c.getPrimaryContact() != null
                                 ? c.getPrimaryContact().getFirstName() + " " + c.getPrimaryContact().getLastName()
                                 : null
                 ))
@@ -123,5 +126,38 @@ public class CompanyService {
 
     public void deleteCompany(Long id) {
         companyRepository.deleteById(id);
+    }
+
+    public List<CompanyResponseDto> getMyCompanies(Long approverId) {
+
+        List<Company> companies =
+                companyRepository.findByApproverId(approverId);
+
+        return companies.stream()
+                .map(company -> {
+
+                    CompanyResponseDto dto = new CompanyResponseDto();
+
+                    dto.setId(company.getId());
+                    dto.setName(company.getName());
+                    dto.setLocation(company.getLocation());
+                    dto.setPhoneNumber(company.getPhoneNumber());
+
+                    if (company.getApprover() != null) {
+                        dto.setApproverId(company.getApprover().getId());
+                    }
+
+                    if (company.getPrimaryContact() != null) {
+                        dto.setPrimaryContactId(
+                                company.getPrimaryContact().getId()
+                        );
+                        dto.setContactName(
+                                company.getPrimaryContact().getFirstName() + " " + company.getPrimaryContact().getLastName()
+                        );
+                    }
+
+                    return dto;
+                })
+                .toList();
     }
 }

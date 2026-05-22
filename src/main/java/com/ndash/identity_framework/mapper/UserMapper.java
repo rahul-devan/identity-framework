@@ -5,7 +5,7 @@ import com.ndash.identity_framework.dto.UserApplicationDto;
 import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.util.CommonUtil;
 
-import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -28,6 +28,9 @@ public class UserMapper {
                         .collect(Collectors.toSet())
         );
         dto.setNoIcon(CommonUtil.generateNoIcon(user.getFirstName(), user.getLastName()));
+        if (user.getBlueprint() != null) {
+            dto.setBlueprints(List.of(user.getBlueprint().getName()));
+        }
 
         return dto;
     }

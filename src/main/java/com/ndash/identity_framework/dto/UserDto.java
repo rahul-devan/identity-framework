@@ -34,5 +34,7 @@ public class UserDto {
     private List<UserApplicationDto> applications;
     private UserSource source;
     private Long manager;
+    private List<String> blueprints;
+    private Long companyId;
 
 }
