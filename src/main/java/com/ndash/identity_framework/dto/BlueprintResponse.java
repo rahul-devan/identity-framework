@@ -13,5 +13,5 @@ public class BlueprintResponse {
     private String name;
 
     private List<IdNameDto> jobTitles;
-    private List<IdNameDto> applications;
+    private List<BlueprintApplicationResponse> applications;
 }

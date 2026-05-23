@@ -25,11 +25,11 @@ public class Blueprint {
     )
     private Set<JobTitle> jobTitles = new HashSet<>();
 
-    @ManyToMany
-    @JoinTable(
-            name = "blueprint_applications",
-            joinColumns = @JoinColumn(name = "blueprint_id"),
-            inverseJoinColumns = @JoinColumn(name = "application_id")
+    @OneToMany(
+            mappedBy = "blueprint",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
     )
-    private Set<Application> applications = new HashSet<>();
+    private Set<BlueprintApplicationRole> applicationRoles =
+            new HashSet<>();
 }

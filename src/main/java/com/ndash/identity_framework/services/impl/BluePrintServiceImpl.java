@@ -1,43 +1,37 @@
 package com.ndash.identity_framework.services.impl;
 
-import com.ndash.identity_framework.domain.Application;
-import com.ndash.identity_framework.domain.Blueprint;
-import com.ndash.identity_framework.domain.JobTitle;
+import com.ndash.identity_framework.domain.*;
+import com.ndash.identity_framework.dto.BlueprintApplicationRequest;
 import com.ndash.identity_framework.dto.BlueprintRequest;
 import com.ndash.identity_framework.dto.BlueprintResponse;
 import com.ndash.identity_framework.exception.BadRequestException;
 import com.ndash.identity_framework.exception.ResourceNotFoundException;
 import com.ndash.identity_framework.mapper.BlueprintMapper;
 import com.ndash.identity_framework.repositories.ApplicationRepository;
+import com.ndash.identity_framework.repositories.ApplicationRoleRepository;
 import com.ndash.identity_framework.repositories.BlueprintRepository;
 import com.ndash.identity_framework.repositories.JobTitleRepository;
 import com.ndash.identity_framework.services.BluePrintService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @Slf4j
 @Transactional
+@RequiredArgsConstructor
 public class BluePrintServiceImpl implements BluePrintService {
 
     private final BlueprintRepository blueprintRepository;
     private final JobTitleRepository jobTitleRepository;
     private final ApplicationRepository applicationRepository;
     private final BlueprintMapper blueprintMapper;
-
-    public BluePrintServiceImpl(BlueprintRepository blueprintRepository,
-                                JobTitleRepository jobTitleRepository,
-                                ApplicationRepository applicationRepository,
-                                BlueprintMapper blueprintMapper) {
-        this.blueprintRepository = blueprintRepository;
-        this.jobTitleRepository = jobTitleRepository;
-        this.applicationRepository = applicationRepository;
-        this.blueprintMapper = blueprintMapper;
-    }
+    private final ApplicationRoleRepository applicationRoleRepository;
 
     // 🔹 GET ALL
     @Override
@@ -69,97 +63,165 @@ public class BluePrintServiceImpl implements BluePrintService {
         return blueprintMapper.toResponse(blueprint);
     }
 
-    // 🔹 CREATE
     @Override
     public BlueprintResponse createBlueprint(BlueprintRequest request) {
 
-        log.info("Creating blueprint with name={}", request.getName());
+        log.info(
+                "Creating blueprint with name={}",
+                request.getName()
+        );
 
         validateRequest(request);
 
         if (blueprintRepository.existsByNameIgnoreCase(request.getName())) {
-            log.error("Blueprint already exists with name={}", request.getName());
-            throw new BadRequestException("Blueprint already exists with name: " + request.getName());
+            throw new BadRequestException("Blueprint already exists");
         }
 
         Blueprint blueprint = new Blueprint();
+
         blueprint.setName(request.getName());
 
-        // 🔥 JobTitles
-        List<JobTitle> jobTitles = jobTitleRepository.findAllById(request.getJobTitleIds());
+        // =====================================
+        // JOB TITLES
+        // =====================================
 
-        if (jobTitles.size() != request.getJobTitleIds().size()) {
-            throw new BadRequestException("Invalid jobTitleIds provided");
+        List<JobTitle> jobTitles =
+                jobTitleRepository.findAllById(
+                        request.getJobTitleIds()
+                );
+
+        if (jobTitles.size()
+                != request.getJobTitleIds().size()) {
+
+            throw new BadRequestException(
+                    "Invalid jobTitleIds"
+            );
         }
 
-        blueprint.setJobTitles(new HashSet<>(jobTitles));
+        blueprint.setJobTitles(
+                new HashSet<>(jobTitles)
+        );
 
-        // 🔥 Applications
-        List<Application> applications = applicationRepository.findAllById(request.getApplicationIds());
+        // =====================================
+        // APPLICATION ROLE MAPPINGS
+        // =====================================
 
-        if (applications.size() != request.getApplicationIds().size()) {
-            throw new BadRequestException("Invalid applicationIds provided");
+        Set<BlueprintApplicationRole> mappings =
+                new HashSet<>();
+
+        for (BlueprintApplicationRequest appReq
+                : request.getApplications()) {
+
+            Application application =
+                    applicationRepository.findById(
+                                    appReq.getApplicationId()
+                            )
+                            .orElseThrow(() ->
+                                    new BadRequestException(
+                                            "Invalid applicationId"
+                                    ));
+
+            for (String roleName : appReq.getRoles()) {
+
+                BlueprintApplicationRole mapping =
+                        new BlueprintApplicationRole();
+
+                mapping.setBlueprint(blueprint);
+
+                mapping.setApplication(application);
+
+                mapping.setRoleName(roleName);
+
+                mappings.add(mapping);
+            }
         }
 
-        blueprint.setApplications(new HashSet<>(applications));
+        blueprint.setApplicationRoles(mappings);
 
-        Blueprint saved = blueprintRepository.save(blueprint);
-
-        log.info("Blueprint created successfully with id={}", saved.getId());
+        Blueprint saved =
+                blueprintRepository.save(blueprint);
 
         return blueprintMapper.toResponse(saved);
     }
 
     // 🔹 UPDATE
     @Override
-    public BlueprintResponse updateBlueprint(Long id, BlueprintRequest request) {
+    public BlueprintResponse updateBlueprint(
+            Long id,
+            BlueprintRequest request
+    ) {
 
-        log.info("Updating blueprint with id={}", id);
+        Blueprint existing =
+                blueprintRepository.findById(id)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Blueprint not found"
+                                ));
 
-        validateRequest(request);
+        // =====================================
+        // NAME
+        // =====================================
 
-        Blueprint existing = blueprintRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.error("Blueprint not found for update with id={}", id);
-                    return new ResourceNotFoundException("Blueprint not found with id: " + id);
-                });
-
-        // 🔥 Update Name
         if (request.getName() != null) {
             existing.setName(request.getName());
         }
 
-        // 🔥 Update JobTitles
+        // =====================================
+        // JOB TITLES
+        // =====================================
+
         if (request.getJobTitleIds() != null) {
 
             List<JobTitle> jobTitles =
-                    jobTitleRepository.findAllById(request.getJobTitleIds());
-
-            if (jobTitles.size() != request.getJobTitleIds().size()) {
-                throw new BadRequestException("Invalid jobTitleIds provided");
-            }
+                    jobTitleRepository.findAllById(
+                            request.getJobTitleIds()
+                    );
 
             existing.getJobTitles().clear();
+
             existing.getJobTitles().addAll(jobTitles);
         }
 
-        // 🔥 Update Applications
-        if (request.getApplicationIds() != null) {
+        // =====================================
+        // APPLICATION ROLE MAPPINGS
+        // =====================================
 
-            List<Application> applications =
-                    applicationRepository.findAllById(request.getApplicationIds());
+        existing.getApplicationRoles().clear();
 
-            if (applications.size() != request.getApplicationIds().size()) {
-                throw new BadRequestException("Invalid applicationIds provided");
+        Set<BlueprintApplicationRole> mappings =
+                new HashSet<>();
+
+        for (BlueprintApplicationRequest appReq
+                : request.getApplications()) {
+
+            Application application =
+                    applicationRepository.findById(
+                                    appReq.getApplicationId()
+                            )
+                            .orElseThrow(() ->
+                                    new BadRequestException(
+                                            "Invalid applicationId"
+                                    ));
+
+            for (String roleName : appReq.getRoles()) {
+
+                BlueprintApplicationRole mapping =
+                        new BlueprintApplicationRole();
+
+                mapping.setBlueprint(existing);
+
+                mapping.setApplication(application);
+
+                mapping.setRoleName(roleName);
+
+                mappings.add(mapping);
             }
-
-            existing.getApplications().clear();
-            existing.getApplications().addAll(applications);
         }
 
-        Blueprint saved = blueprintRepository.save(existing);
+        existing.getApplicationRoles().addAll(mappings);
 
-        log.info("Blueprint updated successfully with id={}", saved.getId());
+        Blueprint saved =
+                blueprintRepository.save(existing);
 
         return blueprintMapper.toResponse(saved);
     }
@@ -192,8 +254,8 @@ public class BluePrintServiceImpl implements BluePrintService {
             throw new BadRequestException("At least one jobTitleId is required");
         }
 
-        if (request.getApplicationIds() == null || request.getApplicationIds().isEmpty()) {
-            throw new BadRequestException("At least one applicationId is required");
+        if (request.getApplications() == null || request.getApplications().isEmpty()) {
+            throw new BadRequestException("At least one application is required");
         }
     }
 }

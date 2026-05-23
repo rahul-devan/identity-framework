@@ -11,5 +11,5 @@ public class BlueprintRequest {
 
     private List<Long> jobTitleIds;
 
-    private List<Long> applicationIds;
+    private List<BlueprintApplicationRequest> applications;
 }
