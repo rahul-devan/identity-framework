@@ -23,11 +23,14 @@ public interface BlueprintRepository extends JpaRepository<Blueprint, Long> {
     List<Blueprint> findByJobTitleId(@Param("jobTitleId") Long jobTitleId);
 
     @Query("""
-        SELECT DISTINCT b
-        FROM Blueprint b
-        JOIN FETCH b.applications
-        JOIN b.jobTitles jt
-        WHERE jt.id = :jobTitleId
-    """)
-    List<Blueprint> findByJobTitleIdWithApps(@Param("jobTitleId") Long jobTitleId);
+    SELECT DISTINCT b
+    FROM Blueprint b
+    LEFT JOIN FETCH b.applicationRoles ar
+    LEFT JOIN FETCH ar.application
+    JOIN FETCH b.jobTitles jt
+    WHERE jt.id = :jobTitleId
+""")
+    List<Blueprint> findByJobTitleIdWithApps(
+            Long jobTitleId
+    );
 }
