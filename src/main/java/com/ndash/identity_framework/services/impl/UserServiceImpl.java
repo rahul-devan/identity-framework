@@ -113,6 +113,7 @@ public class UserServiceImpl implements UserService {
                         user.setManager(comppany.get().getApprover());
                     }
                 } else {
+                    log.info("No companyId provided for user, setting manager as logged in user: {}", loggedInUserId);
                     user.setManager(userRepository.findById(loggedInUserId).orElse(null));
                 }
 
@@ -175,6 +176,9 @@ public class UserServiceImpl implements UserService {
                     log.info("Manager is: {}", comppany.get().getApprover() != null ? comppany.get().getApprover().getEmail() : "No Manager");
                     user.setManager(comppany.get().getApprover());
                 }
+            } else {
+                log.info("No companyId provided for user, setting manager as logged in user: {}", loggedInUserId);
+                user.setManager(userRepository.findById(loggedInUserId).orElse(null));
             }
 
             // 7. Save to DB
