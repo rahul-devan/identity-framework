@@ -156,6 +156,7 @@ public class UserServiceImpl implements UserService {
             user.setUsername(userDto.getEmail());
             user.setSource(UserSource.APP);
             user.setActive(true);
+            user.setPhoneNumber(userDto.getPhoneNumber());
             user.setPassword(passwordEncoder.encode("Test@123"));
 
             if (userDto.getBlueprints() != null && !userDto.getBlueprints().isEmpty()) {
