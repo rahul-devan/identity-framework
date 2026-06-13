@@ -1,5 +1,6 @@
 package com.ndash.identity_framework.controller;
 
+import com.ndash.identity_framework.domain.User;
 import com.ndash.identity_framework.dto.ApiResponse;
 import com.ndash.identity_framework.dto.ResetPasswordRequest;
 import com.ndash.identity_framework.dto.UserDto;
@@ -28,7 +29,8 @@ public class UserController {
     @PostMapping
     public ResponseEntity<ApiResponse<UserDto>> createUser(@RequestBody UserDto userDto,
                                                            @AuthenticationPrincipal Jwt jwt) throws ApiException {
-        UserDto createdUser = userService.createUser(userDto);
+        Long loggedInUserId = userService.getUserById(jwt.getClaim("userId")).getId();
+        UserDto createdUser = userService.createUser(userDto, loggedInUserId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(createdUser, HttpStatus.CREATED.value()));
     }

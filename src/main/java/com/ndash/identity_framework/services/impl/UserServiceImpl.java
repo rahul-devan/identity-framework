@@ -41,7 +41,7 @@ public class UserServiceImpl implements UserService {
     private final CompanyRepository companyRepository;
 
     @Override
-    public UserDto createUser(UserDto userDto) throws ApiException {
+    public UserDto createUser(UserDto userDto, Long loggedInUserId) throws ApiException {
 
         Role defaultRole = roleRepository.findByName("user").orElse(null); // Need to change this logic later
         if (defaultRole == null) {
@@ -112,6 +112,8 @@ public class UserServiceImpl implements UserService {
                         log.info("Manager is: {}", comppany.get().getApprover() != null ? comppany.get().getApprover().getEmail() : "No Manager");
                         user.setManager(comppany.get().getApprover());
                     }
+                } else {
+                    user.setManager(userRepository.findById(loggedInUserId).orElse(null));
                 }
 
                 User savedUser = userRepository.save(user);
@@ -149,7 +151,6 @@ public class UserServiceImpl implements UserService {
             }
             // 4. Convert DTO -> Entity
             User user = UserMapper.toEntity(userDto, assignedRoles);
-            user.setManager(userRepository.findById(userDto.getManager()).orElse(null));
             user.setAzureId(azureUser != null ? azureUser.id : null);
             user.setUsername(userDto.getEmail());
             user.setSource(UserSource.APP);
@@ -216,6 +217,7 @@ public class UserServiceImpl implements UserService {
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
             List<UserApplication> applications = userApplicationRepository.findByUserIdAndActiveTrue(id);
+//            if(user.)
 
             UserDto dto = UserMapper.toDto(user);
 

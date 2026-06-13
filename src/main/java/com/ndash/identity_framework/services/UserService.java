@@ -9,7 +9,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import java.util.List;
 
 public interface UserService {
-    UserDto createUser(UserDto userDto) throws ApiException;
+    UserDto createUser(UserDto userDto, Long loggedInUserId) throws ApiException;
     List<UserDto> getAllUsers() throws ApiException;
     UserDto getUserById(Long id);
     void syncUsersFromAzure();
