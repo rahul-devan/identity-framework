@@ -60,7 +60,7 @@ public class CompanyService {
         // IMPORTANT
 
 
-        UserDto saved = userService.createUser(primaryContact);
+        UserDto saved = userService.createUser(primaryContact, approver.getId());
         User companyContact = userRepository.findById(saved.getId()).orElse(null);
         if(null != companyContact) {
             company.setPrimaryContact(companyContact);
