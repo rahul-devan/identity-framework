@@ -21,6 +21,7 @@ public class UserMapper {
         dto.setPhoneNumber(user.getPhoneNumber());
         dto.setEmail(user.getEmail());
         dto.setDob(user.getDob());
+        dto.setActive(user.isActive());
         dto.setCountryCode(user.getCountryCode());
         dto.setMaskedSsn(CommonUtil.maskSSN(user.getSsn()));  // masked
         dto.setRoles(

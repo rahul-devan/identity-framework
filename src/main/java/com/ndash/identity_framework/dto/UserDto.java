@@ -38,5 +38,6 @@ public class UserDto {
     private Long companyId;
     private String countryCode;
     private CompanyResponseDto company;
+    private boolean isActive;
 
 }
