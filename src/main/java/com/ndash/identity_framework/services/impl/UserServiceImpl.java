@@ -158,6 +158,7 @@ public class UserServiceImpl implements UserService {
             user.setUsername(userDto.getEmail());
             user.setSource(UserSource.APP);
             user.setActive(true);
+            user.setCountryCode(userDto.getCountryCode());
             user.setPhoneNumber(userDto.getPhoneNumber());
             user.setPassword(passwordEncoder.encode("Test@123"));
 
@@ -448,6 +449,9 @@ public class UserServiceImpl implements UserService {
                         existingUserRoles.add(userRole);
                     }
                 }
+            }
+            if(Objects.nonNull(userDto.getCountryCode())){
+                existingUser.setCountryCode(userDto.getCountryCode());
             }
 
             if (Objects.isNull(existingUser.getSource())) {

@@ -107,6 +107,9 @@ public class User {
     @JoinColumn(name = "company_id")
     private Company company;
 
+    @Column(name = "country_code")
+    private String countryCode;
+
 
 }
 
