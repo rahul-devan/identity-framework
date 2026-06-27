@@ -55,6 +55,7 @@ public class BlueprintMapper {
                                             first.getApplication()
                                                     .getName()
                                     )
+                                    .essential(first.getApplication().getEssential())
                                     .roles(
                                             group.stream()
                                                     .map(
