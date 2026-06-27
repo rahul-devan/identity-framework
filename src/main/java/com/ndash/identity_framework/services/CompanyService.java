@@ -13,6 +13,7 @@ import com.ndash.identity_framework.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
@@ -93,6 +94,7 @@ public class CompanyService {
                 .toList();
     }
 
+    @Transactional
     public void updateCompany(Long id, CompanyRequestDto dto) {
 
         Company company = companyRepository.findById(id).orElseThrow();
@@ -125,8 +127,8 @@ public class CompanyService {
             }
         }
 
-        company.setEnabled(dto.isEnabled());
-        if(!dto.isEnabled()){
+        company.setEnabled(dto.getIsEnabled());
+        if(!dto.getIsEnabled()){
             List<User> users = userRepository.findByCompanyId(company.getId());
             users.forEach(user -> {
                 user.setActive(false);

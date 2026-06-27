@@ -9,7 +9,7 @@ public class CompanyRequestDto {
     private String location;
     private String phoneNumber;
     private Long approverId;
-    private boolean isEnabled;
+    private Boolean isEnabled;
 
     private ContactDto contact;
 }
