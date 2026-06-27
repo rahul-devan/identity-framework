@@ -38,6 +38,7 @@ public class CompanyService {
         company.setLocation(dto.getLocation());
         company.setPhoneNumber(dto.getPhoneNumber());
         company.setStatus(RequestStatus.APPROVED);
+        company.setEnabled(true);
 
         User approver = userRepository.findById(dto.getApproverId())
                 .orElseThrow();
@@ -86,7 +87,8 @@ public class CompanyService {
                                 : null,
                         c.getPrimaryContact() != null
                                 ? c.getPrimaryContact().getFirstName() + " " + c.getPrimaryContact().getLastName()
-                                : null
+                                : null,
+                        c.isEnabled()
                 ))
                 .toList();
     }
@@ -175,6 +177,7 @@ public class CompanyService {
                                 company.getPrimaryContact().getFirstName() + " " + company.getPrimaryContact().getLastName()
                         );
                     }
+                    dto.setEnabled(company.isEnabled());
 
                     return dto;
                 })
