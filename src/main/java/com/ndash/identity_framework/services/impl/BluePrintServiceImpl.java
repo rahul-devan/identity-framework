@@ -130,6 +130,8 @@ public class BluePrintServiceImpl implements BluePrintService {
 
                 mapping.setApplication(application);
 
+                mapping.setApplicationRole(null);
+
                 mapping.setRoleName(roleName);
 
                 mappings.add(mapping);

@@ -102,6 +102,12 @@ public class User {
 
     @OneToMany(mappedBy = "manager")
     private Set<User> subordinates = new HashSet<>();
+
+    @ManyToOne
+    @JoinColumn(name = "company_id")
+    private Company company;
+
+
 }
 
 

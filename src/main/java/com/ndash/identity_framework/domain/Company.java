@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "companies")
@@ -42,4 +44,10 @@ public class Company {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private RequestStatus status = RequestStatus.PENDING;
+
+    @Column(name = "is_enabled")
+    private boolean isEnabled;
+
+    @OneToMany(mappedBy = "company")
+    private Set<User> users = new HashSet<>();
 }

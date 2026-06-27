@@ -6,6 +6,7 @@ import com.ndash.identity_framework.dto.ResetPasswordRequest;
 import com.ndash.identity_framework.dto.SimpleUserDto;
 import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.exception.ApiException;
+import com.ndash.identity_framework.exception.DuplicateResourceException;
 import com.ndash.identity_framework.helper.AzureUserUpdater;
 import com.ndash.identity_framework.mapper.UserMapper;
 import com.ndash.identity_framework.repositories.*;
@@ -43,6 +44,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserDto createUser(UserDto userDto, Long loggedInUserId) throws ApiException {
 
+        validateUniqueFields(userDto);
         Role defaultRole = roleRepository.findByName("user").orElse(null); // Need to change this logic later
         if (defaultRole == null) {
             throw new RuntimeException("Default role 'user' not found in DB");
@@ -447,6 +449,7 @@ public class UserServiceImpl implements UserService {
                     }
                 }
             }
+
             if (Objects.isNull(existingUser.getSource())) {
                 UserSource source = existingUser.getAzureId() != null ? UserSource.ENTRA : UserSource.APP;
                 existingUser.setSource(source);
@@ -461,6 +464,14 @@ public class UserServiceImpl implements UserService {
                         .orElseThrow(() -> new RuntimeException("Invalid blueprint"));
 
                 existingUser.setBlueprint(blueprint);
+            }
+            if (userDto.getCompanyId() != null) {
+                Company company = companyRepository.findById(userDto.getCompanyId())
+                        .orElseThrow(() -> new RuntimeException("Company not found"));
+                existingUser.setCompany(company);
+                if (company.getApprover() != null) {
+                    existingUser.setManager(company.getApprover());
+                }
             }
 
             // 5. Save
@@ -600,6 +611,26 @@ public class UserServiceImpl implements UserService {
                     return dto;
                 })
                 .collect(Collectors.toSet());
+    }
+
+    private void validateUniqueFields(UserDto userDto) throws ApiException {
+
+        if (userRepository.existsByEmail(userDto.getEmail())) {
+            throw new DuplicateResourceException("A user with email '" +
+                    userDto.getEmail() + "' already exists.");
+        }
+
+        if (userDto.getPhoneNumber() != null &&
+                userRepository.existsByPhoneNumber(userDto.getPhoneNumber())) {
+            throw new DuplicateResourceException("A user with mobile number '" +
+                    userDto.getPhoneNumber() + "' already exists.");
+        }
+
+        if (userDto.getSsn() != null &&
+                userRepository.existsBySsn(userDto.getSsn())) {
+            throw new DuplicateResourceException("A user with SSN '" +
+                    userDto.getSsn() + "' already exists.");
+        }
     }
 
 }

@@ -30,5 +30,19 @@ public interface UserRepository extends JpaRepository<User, Long> {
         return findDistinctByUserRolesRoleNameIgnoreCase("manager");
     }
 
+    List<User> findByCompanyId(Long companyId);
+
+
+
+    Optional<User> findByPhoneNumber(String phoneNumber);
+
+    Optional<User> findBySsn(String ssn);
+
+    boolean existsByEmail(String email);
+
+    boolean existsByPhoneNumber(String phoneNumber);
+
+    boolean existsBySsn(String ssn);
+
 
 }

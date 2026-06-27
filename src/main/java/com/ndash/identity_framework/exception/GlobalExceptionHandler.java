@@ -3,10 +3,10 @@ package com.ndash.identity_framework.exception;
 import com.ndash.identity_framework.dto.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@ControllerAdvice
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
     // Handle runtime exceptions (generic)
@@ -43,6 +43,13 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(400)
                 .body(ApiResponse.error(ex.getMessage(), 400));
+    }
+
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ApiResponse<Object>> handleDuplicateResource(DuplicateResourceException ex) {
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getMessage(), HttpStatus.CONFLICT.value()));
     }
 }
 

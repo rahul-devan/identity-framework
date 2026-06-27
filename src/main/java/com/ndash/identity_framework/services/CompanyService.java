@@ -11,6 +11,7 @@ import com.ndash.identity_framework.exception.ApiException;
 import com.ndash.identity_framework.repositories.CompanyRepository;
 import com.ndash.identity_framework.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CompanyService {
 
     private final CompanyRepository companyRepository;
@@ -97,6 +99,7 @@ public class CompanyService {
         company.setLocation(dto.getLocation());
         company.setPhoneNumber(dto.getPhoneNumber());
 
+
         User approver = userRepository.findById(dto.getApproverId()).orElseThrow();
         company.setApprover(approver);
 
@@ -118,7 +121,15 @@ public class CompanyService {
             contact.setSsn(dto.getContact().getSsn());
         }
 
-//        contact.setCompany(company);
+        company.setEnabled(dto.isEnabled());
+        if(!dto.isEnabled()){
+            List<User> users = userRepository.findByCompanyId(company.getId());
+            users.forEach(user -> {
+                user.setActive(false);
+                userRepository.save(user);
+            });
+            log.info("Company {} is disabled. All associated users have been deactivated.", company.getName());
+        }
         company.setPrimaryContact(contact);
 
         companyRepository.save(company);
