@@ -106,19 +106,21 @@ public class CompanyService {
         User contact = company.getPrimaryContact();
         if (contact == null) contact = new User();
 
-        contact.setFirstName(dto.getContact().getFirstName());
-        contact.setLastName(dto.getContact().getLastName());
-        if(!Objects.isNull(dto.getContact().getEmail())){
-            contact.setEmail(dto.getContact().getEmail());
-        }
-        if (!Objects.isNull(dto.getContact().getPhoneNumber())) {
-            contact.setPhoneNumber(dto.getContact().getPhoneNumber());
-        }
-        if(!Objects.isNull(dto.getContact().getDob())) {
-            contact.setDob(dto.getContact().getDob().atStartOfDay());
-        }
-        if(!Objects.isNull(dto.getContact().getSsn())) {
-            contact.setSsn(dto.getContact().getSsn());
+        if(Objects.nonNull(dto.getContact())) {
+            contact.setFirstName(dto.getContact().getFirstName());
+            contact.setLastName(dto.getContact().getLastName());
+            if (!Objects.isNull(dto.getContact().getEmail())) {
+                contact.setEmail(dto.getContact().getEmail());
+            }
+            if (!Objects.isNull(dto.getContact().getPhoneNumber())) {
+                contact.setPhoneNumber(dto.getContact().getPhoneNumber());
+            }
+            if (!Objects.isNull(dto.getContact().getDob())) {
+                contact.setDob(dto.getContact().getDob().atStartOfDay());
+            }
+            if (!Objects.isNull(dto.getContact().getSsn())) {
+                contact.setSsn(dto.getContact().getSsn());
+            }
         }
 
         company.setEnabled(dto.isEnabled());
@@ -129,6 +131,13 @@ public class CompanyService {
                 userRepository.save(user);
             });
             log.info("Company {} is disabled. All associated users have been deactivated.", company.getName());
+        } else {
+            List<User> users = userRepository.findByCompanyId(company.getId());
+            users.forEach(user -> {
+                user.setActive(true);
+                userRepository.save(user);
+            });
+            log.info("Company {} is enabled. All associated users have been activated.", company.getName());
         }
         company.setPrimaryContact(contact);
 
