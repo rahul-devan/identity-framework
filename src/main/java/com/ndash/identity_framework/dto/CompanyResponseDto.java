@@ -19,4 +19,5 @@ public class CompanyResponseDto {
 
     private Long primaryContactId;
     private String contactName;
+    private boolean isEnabled;
 }
