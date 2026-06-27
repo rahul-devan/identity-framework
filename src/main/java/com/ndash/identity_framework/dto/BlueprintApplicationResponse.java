@@ -12,6 +12,7 @@ public class BlueprintApplicationResponse {
     private Long applicationId;
 
     private String applicationName;
+    private Boolean essential;
 
     private List<String> roles;
 }

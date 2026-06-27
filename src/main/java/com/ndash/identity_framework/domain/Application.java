@@ -40,6 +40,9 @@ public class Application {
     @Column(name = "integration_name")
     private String integrationName;
 
+    @Column(name = "essential")
+    private Boolean essential;
+
     @PrePersist
     protected void onCreate() {
         createdAt = java.time.LocalDateTime.now();
