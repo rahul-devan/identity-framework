@@ -204,6 +204,7 @@ public class UserServiceImpl implements UserService {
             log.info("Fetched all users, total size: {}", users.size());
 
             return users.stream()
+                    .filter(User::isActive)
                     .map(user -> {
                         UserDto dto = UserMapper.toDto(user);
                         dto.setSubordinates(getSubordinates(user.getId())); // 👈 here
