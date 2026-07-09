@@ -1,12 +1,15 @@
 package com.ndash.identity_framework.controller;
 
+import com.ndash.identity_framework.config.ApiPaths;
 import com.ndash.identity_framework.dto.ApiResponse;
-import com.ndash.identity_framework.dto.PaginatedResponse;
 import com.ndash.identity_framework.dto.RoleDto;
 import com.ndash.identity_framework.exception.ApiException;
+import com.ndash.identity_framework.security.RoleConstants;
 import com.ndash.identity_framework.services.RoleService;
-import org.springframework.data.domain.Page;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -14,18 +17,17 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/roles")
+@RequestMapping({ApiPaths.V1 + "/roles", ApiPaths.LEGACY + "/roles"})
+@RequiredArgsConstructor
 public class RoleController {
 
     private final RoleService roleService;
 
-    public RoleController(RoleService roleService) {
-        this.roleService = roleService;
-    }
-
     @PostMapping
-    public ResponseEntity<ApiResponse<RoleDto>> createRole(@RequestBody RoleDto roleDto,
-                                                           @AuthenticationPrincipal Jwt jwt) {
+    @PreAuthorize(RoleConstants.ADMIN_AUTHORITIES)
+    public ResponseEntity<ApiResponse<RoleDto>> createRole(
+            @RequestBody final RoleDto roleDto,
+            @AuthenticationPrincipal final Jwt jwt) {
         RoleDto createdRole = roleService.createRole(roleDto);
         return ResponseEntity.ok(ApiResponse.success(createdRole, 200));
     }
@@ -59,7 +61,8 @@ public class RoleController {
 
     // Delete Role
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteRole(@PathVariable Long id,
+    @PreAuthorize(RoleConstants.ADMIN_AUTHORITIES)
+    public ResponseEntity<ApiResponse<Void>> deleteRole(@PathVariable final Long id,
                                                         @AuthenticationPrincipal Jwt jwt) {
         roleService.deleteRole(id);
         return ResponseEntity.ok(ApiResponse.success(null, 200));

@@ -1,6 +1,5 @@
 package com.ndash.identity_framework.services.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ndash.identity_framework.domain.User;
 import com.ndash.identity_framework.dto.ApiResponse;
 import com.ndash.identity_framework.dto.LoginRequest;
@@ -8,55 +7,29 @@ import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.mapper.UserMapper;
 import com.ndash.identity_framework.repositories.UserRepository;
 import com.ndash.identity_framework.services.AuthService;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class AuthServiceImpl implements AuthService {
 
-    @Value("${azure.tenant-id}")
-    private String tenantId;
-
-    @Value("${azure.client-id}")
-    private String clientId;
-
-    @Value("${azure.client-secret}")
-    private String clientSecret;
-
-    @Value("${azure.scope:openid profile offline_access}")
-    private String scope;
-
     private final UserRepository userRepository;
-    private final HttpClient httpClient = HttpClient.newHttpClient();
-    private final ObjectMapper objectMapper = new ObjectMapper();
     private final PasswordEncoder passwordEncoder;
 
-    public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
-
-
     @Override
-    public ApiResponse<UserDto> authenticate(Jwt jwt) {
-        String azureId = jwt.getClaimAsString("oid");
-        String email = jwt.getClaimAsString("upn");
-        String name = jwt.getClaimAsString("name");
+    public ApiResponse<UserDto> authenticate(final Jwt jwt) {
+        final String azureId = jwt.getClaimAsString("oid");
 
-        User user = userRepository.findByAzureId(azureId)
+        final User user = userRepository.findByAzureId(azureId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
                         "User not registered in local system"
@@ -66,57 +39,40 @@ public class AuthServiceImpl implements AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User is deactivated");
         }
 
-        UserDto dto = UserMapper.toDto(user);
+        final UserDto dto = UserMapper.toDto(user);
         return ApiResponse.success(dto, HttpStatus.OK.value());
     }
 
     @Override
-    public ApiResponse<UserDto> authenticate(LoginRequest loginRequest) {
-        try {
+    public ApiResponse<UserDto> authenticate(final LoginRequest loginRequest) {
+        final Optional<User> userOpt = userRepository.findByEmail(loginRequest.getUsername());
 
-            Optional<User> userOpt = userRepository.findByEmail(loginRequest.getUsername());
-
-            if (userOpt.isEmpty() || !userOpt.get().getPassword().equals(loginRequest.getPassword())) {
-                return ApiResponse.error("Invalid username or password", 401);
-            }
-
-            User user = userOpt.get();
-            // Map user details (you could decode idToken for profile info)
-            UserDto userDto = UserMapper.toDto(user);
-
-            return ApiResponse.success(userDto, 200);
-//            // Form data
-//            String form = "client_id=" + URLEncoder.encode(clientId, StandardCharsets.UTF_8) +
-//                    "&client_secret=" + URLEncoder.encode(clientSecret, StandardCharsets.UTF_8) +
-//                    "&grant_type=password" +
-//                    "&username=" + URLEncoder.encode(loginRequest.getUsername(), StandardCharsets.UTF_8) +
-//                    "&password=" + URLEncoder.encode(loginRequest.getPassword(), StandardCharsets.UTF_8) +
-//                    "&scope=" + URLEncoder.encode(scope, StandardCharsets.UTF_8);
-//
-//            HttpRequest httpRequest = HttpRequest.newBuilder()
-//                    .uri(URI.create("https://login.microsoftonline.com/" + tenantId + "/oauth2/v2.0/token"))
-//                    .header("Content-Type", "application/x-www-form-urlencoded")
-//                    .POST(HttpRequest.BodyPublishers.ofString(form))
-//                    .build();
-//
-//            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-//
-//            if (response.statusCode() == 200) {
-//                Map<String, Object> json = objectMapper.readValue(response.body(), Map.class);
-//
-//                String accessToken = (String) json.get("access_token");
-//                String idToken = (String) json.get("id_token");
-//
-//                // Map user details (you could decode idToken for profile info)
-//                UserDto userDto = UserMapper.toDto(user);
-//
-//                return ApiResponse.success(userDto, 200);
-//            } else {
-//                return ApiResponse.error("Invalid credentials", 401);
-//            }
-
-        } catch (Exception e) {
-            return ApiResponse.error("Authentication error: " + e.getMessage(), 500);
+        if (userOpt.isEmpty() || !verifyAndUpgradePassword(userOpt.get(), loginRequest.getPassword())) {
+            return ApiResponse.error("Invalid username or password", 401);
         }
+
+        final User user = userOpt.get();
+        final UserDto userDto = UserMapper.toDto(user);
+        return ApiResponse.success(userDto, 200);
+    }
+
+    private boolean verifyAndUpgradePassword(final User user, final String rawPassword) {
+        final String storedPassword = user.getPassword();
+        if (storedPassword == null || rawPassword == null) {
+            return false;
+        }
+
+        if (passwordEncoder.matches(rawPassword, storedPassword)) {
+            return true;
+        }
+
+        if (storedPassword.equals(rawPassword)) {
+            user.setPassword(passwordEncoder.encode(rawPassword));
+            userRepository.save(user);
+            log.info("[identity-framework] - AUTH: upgraded legacy plaintext password for userId={}", user.getId());
+            return true;
+        }
+
+        return false;
     }
 }

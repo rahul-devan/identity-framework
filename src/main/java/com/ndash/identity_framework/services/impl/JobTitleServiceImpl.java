@@ -7,6 +7,7 @@ import com.ndash.identity_framework.mapper.JobTitleMapper;
 import com.ndash.identity_framework.repositories.JobTitleRepository;
 import com.ndash.identity_framework.services.JobTitleService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +30,7 @@ public class JobTitleServiceImpl implements JobTitleService {
     // 🔹 GET ALL
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "jobTitles")
     public List<JobTitleResponse> getAllJobTitles() {
 
         log.info("Fetching all job titles");

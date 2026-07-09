@@ -1,77 +1,57 @@
 package com.ndash.identity_framework.controller;
 
+import com.ndash.identity_framework.config.ApiPaths;
 import com.ndash.identity_framework.dto.ApiResponse;
 import com.ndash.identity_framework.dto.BlueprintRequest;
 import com.ndash.identity_framework.dto.BlueprintResponse;
+import com.ndash.identity_framework.security.RoleConstants;
 import com.ndash.identity_framework.services.BluePrintService;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/blueprints")
+@RequestMapping({ApiPaths.V1 + "/blueprints", ApiPaths.LEGACY + "/blueprints"})
+@RequiredArgsConstructor
 public class BlueprintController {
 
     private final BluePrintService blueprintService;
 
-    public BlueprintController(BluePrintService blueprintService) {
-        this.blueprintService = blueprintService;
-    }
-
-    // 🔹 GET ALL
     @GetMapping
     public ResponseEntity<ApiResponse<List<BlueprintResponse>>> getAll() {
-
-        List<BlueprintResponse> response = blueprintService.getAllBlueprints();
-
-        return ResponseEntity.ok(ApiResponse.success(response, 200));
+        return ResponseEntity.ok(ApiResponse.success(blueprintService.getAllBlueprints(), HttpStatus.OK.value()));
     }
 
-    // 🔹 GET BY ID
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<BlueprintResponse>> getById(
-            @PathVariable Long id) {
-
-        BlueprintResponse response = blueprintService.getBlueprintById(id);
-
-        return ResponseEntity.ok(ApiResponse.success(response, 200));
+    public ResponseEntity<ApiResponse<BlueprintResponse>> getById(@PathVariable final Long id) {
+        return ResponseEntity.ok(ApiResponse.success(blueprintService.getBlueprintById(id), HttpStatus.OK.value()));
     }
 
-    // 🔹 CREATE
     @PostMapping
-    public ResponseEntity<ApiResponse<BlueprintResponse>> create(
-            @RequestBody BlueprintRequest request) {
-
-        BlueprintResponse response = blueprintService.createBlueprint(request);
-
-        return ResponseEntity.ok(ApiResponse.success(response, 201));
+    @PreAuthorize(RoleConstants.ADMIN_AUTHORITIES)
+    public ResponseEntity<ApiResponse<BlueprintResponse>> create(@Valid @RequestBody final BlueprintRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(
+                blueprintService.createBlueprint(request), HttpStatus.CREATED.value()));
     }
 
-    // 🔹 UPDATE
     @PutMapping("/{id}")
+    @PreAuthorize(RoleConstants.ADMIN_AUTHORITIES)
     public ResponseEntity<ApiResponse<BlueprintResponse>> update(
-            @PathVariable Long id,
-            @RequestBody BlueprintRequest request) {
-
-        BlueprintResponse response = blueprintService.updateBlueprint(id, request);
-
-        return ResponseEntity.ok(ApiResponse.success(response, 200));
+            @PathVariable final Long id,
+            @Valid @RequestBody final BlueprintRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                blueprintService.updateBlueprint(id, request), HttpStatus.OK.value()));
     }
 
-    // 🔹 DELETE
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(
-            @PathVariable Long id) {
-
+    @PreAuthorize(RoleConstants.ADMIN_AUTHORITIES)
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable final Long id) {
         blueprintService.deleteBlueprint(id);
-
-        return ResponseEntity.ok(
-                new ApiResponse<>("SUCCESS", 200, null, null)
-        );
+        return ResponseEntity.ok(ApiResponse.success(null, HttpStatus.OK.value()));
     }
 }

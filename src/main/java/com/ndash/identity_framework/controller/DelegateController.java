@@ -1,8 +1,11 @@
 package com.ndash.identity_framework.controller;
 
+import com.ndash.identity_framework.config.ApiPaths;
 import com.ndash.identity_framework.dto.*;
 import com.ndash.identity_framework.services.DelegateService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -11,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/delegates")
+@RequestMapping({ApiPaths.V1 + "/delegates", ApiPaths.LEGACY + "/delegates"})
 @RequiredArgsConstructor
 public class DelegateController {
 
@@ -20,13 +23,13 @@ public class DelegateController {
     // 🔹 Submit request
     @PostMapping("/request")
     public ResponseEntity<ApiResponse<Void>> createRequest(
-            @RequestBody DelegateRequestDTO dto, @AuthenticationPrincipal Jwt jwt) {
+            @Valid @RequestBody final DelegateRequestDTO dto,
+            @AuthenticationPrincipal final Jwt jwt) {
 
         delegateService.createRequest(jwt.getClaim("userId"), dto);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>("Request submitted", 200, null, null)
-        );
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(null, HttpStatus.CREATED.value()));
     }
 
     // 🔹 Get pending requests for department
@@ -35,23 +38,20 @@ public class DelegateController {
             @RequestParam Long departmentId) {
 
         return ResponseEntity.ok(
-                new ApiResponse<>("Success", 200,
-                        delegateService.getPendingRequests(departmentId), null)
+                ApiResponse.success(delegateService.getPendingRequests(departmentId), HttpStatus.OK.value())
         );
     }
 
     // 🔹 Approve / Reject
     @PostMapping("/{id}/action")
     public ResponseEntity<ApiResponse<Void>> actOnRequest(
-            @PathVariable Long id,
-            @RequestBody DelegateActionDTO dto,
-            @AuthenticationPrincipal Jwt jwt) {
+            @PathVariable final Long id,
+            @Valid @RequestBody final DelegateActionDTO dto,
+            @AuthenticationPrincipal final Jwt jwt) {
 
         delegateService.actOnRequest(id, jwt.getClaim("userId"), dto);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>("Action completed", 200, null, null)
-        );
+        return ResponseEntity.ok(ApiResponse.success(null, HttpStatus.OK.value()));
     }
 
     // 🔹 Get delegated users (UI screen)
@@ -60,12 +60,7 @@ public class DelegateController {
             @AuthenticationPrincipal Jwt jwt) {
 
         return ResponseEntity.ok(
-                new ApiResponse<>(
-                        "Success",
-                        200,
-                        delegateService.getDelegatedUsers(jwt.getClaim("userId")),
-                        null
-                )
+                ApiResponse.success(delegateService.getDelegatedUsers(jwt.getClaim("userId")), HttpStatus.OK.value())
         );
     }
 
@@ -73,13 +68,14 @@ public class DelegateController {
     public ResponseEntity<ApiResponse<List<DelegateRequestResponseDTO>>> getMyRequests(@AuthenticationPrincipal Jwt jwt) {
 
         return ResponseEntity.ok(
-                new ApiResponse<>("Success", 200,
-                        delegateService.getMyRequests(jwt.getClaim("userId")), null)
+                ApiResponse.success(delegateService.getMyRequests(jwt.getClaim("userId")), HttpStatus.OK.value())
         );
     }
 
     @PostMapping("/revoke")
-    public ResponseEntity<?> revokeDelegate(@RequestBody RevokeRequest request, @AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<ApiResponse<Void>> revokeDelegate(
+            @Valid @RequestBody final RevokeRequest request,
+            @AuthenticationPrincipal final Jwt jwt) {
 
         delegateService.revokeDelegate(
                 request.getRequesterId(),
@@ -87,6 +83,6 @@ public class DelegateController {
                 request.getComments(),
                 jwt.getClaim("userId")
         );
-        return ResponseEntity.ok().body("Delegation revoked successfully");
+        return ResponseEntity.ok(ApiResponse.success(null, HttpStatus.OK.value()));
     }
 }

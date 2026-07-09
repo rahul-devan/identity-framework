@@ -25,7 +25,7 @@ public class BlueprintApplicationRole {
     private Application application;
 
     @ManyToOne
-    @JoinColumn(name = "application_role_id", nullable = false)
+    @JoinColumn(name = "application_role_id")
     private ApplicationRole applicationRole;
 
 

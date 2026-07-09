@@ -1,11 +1,17 @@
 package com.ndash.identity_framework.controller;
 
+import com.ndash.identity_framework.config.ApiPaths;
+import com.ndash.identity_framework.dto.ApiResponse;
 import com.ndash.identity_framework.dto.CompanyRequestDto;
 import com.ndash.identity_framework.dto.CompanyResponseDto;
 import com.ndash.identity_framework.exception.ApiException;
+import com.ndash.identity_framework.security.RoleConstants;
 import com.ndash.identity_framework.services.CompanyService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -13,40 +19,47 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/companies")
+@RequestMapping({ApiPaths.V1 + "/companies", ApiPaths.LEGACY + "/companies"})
 @RequiredArgsConstructor
 public class CompanyController {
 
     private final CompanyService service;
 
     @PostMapping
-    public ResponseEntity<?> create(@RequestBody CompanyRequestDto dto, @AuthenticationPrincipal Jwt jwt) throws ApiException {
+    @PreAuthorize(RoleConstants.ADMIN_AUTHORITIES)
+    public ResponseEntity<ApiResponse<Void>> create(
+            @Valid @RequestBody final CompanyRequestDto dto,
+            @AuthenticationPrincipal final Jwt jwt) throws ApiException {
         service.createCompany(dto, jwt.getClaim("userId"));
-        return ResponseEntity.ok("Created");
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(null, HttpStatus.CREATED.value()));
     }
 
     @GetMapping
-    public List<CompanyResponseDto> getAll() {
-        return service.getAllCompanies();
+    public ResponseEntity<ApiResponse<List<CompanyResponseDto>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.success(service.getAllCompanies(), HttpStatus.OK.value()));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable Long id,
-                                    @RequestBody CompanyRequestDto dto) {
+    @PreAuthorize(RoleConstants.ADMIN_AUTHORITIES)
+    public ResponseEntity<ApiResponse<Void>> update(
+            @PathVariable final Long id,
+            @Valid @RequestBody final CompanyRequestDto dto) {
         service.updateCompany(id, dto);
-        return ResponseEntity.ok("Updated");
+        return ResponseEntity.ok(ApiResponse.success(null, HttpStatus.OK.value()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id) {
+    @PreAuthorize(RoleConstants.ADMIN_AUTHORITIES)
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable final Long id) {
         service.deleteCompany(id);
-        return ResponseEntity.ok("Deleted");
+        return ResponseEntity.ok(ApiResponse.success(null, HttpStatus.OK.value()));
     }
 
     @GetMapping("/my")
-    public List<CompanyResponseDto> getMyCompanies(
-            @AuthenticationPrincipal Jwt jwt) {
-        Long userId = jwt.getClaim("userId");
-        return service.getMyCompanies(userId);
+    public ResponseEntity<ApiResponse<List<CompanyResponseDto>>> getMyCompanies(
+            @AuthenticationPrincipal final Jwt jwt) {
+        final Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(ApiResponse.success(service.getMyCompanies(userId), HttpStatus.OK.value()));
     }
 }

@@ -130,7 +130,7 @@ public class BluePrintServiceImpl implements BluePrintService {
 
                 mapping.setApplication(application);
 
-                mapping.setApplicationRole(null);
+                mapping.setApplicationRole(resolveApplicationRole(application.getId(), roleName));
 
                 mapping.setRoleName(roleName);
 
@@ -214,6 +214,8 @@ public class BluePrintServiceImpl implements BluePrintService {
 
                 mapping.setApplication(application);
 
+                mapping.setApplicationRole(resolveApplicationRole(application.getId(), roleName));
+
                 mapping.setRoleName(roleName);
 
                 mappings.add(mapping);
@@ -259,5 +261,16 @@ public class BluePrintServiceImpl implements BluePrintService {
         if (request.getApplications() == null || request.getApplications().isEmpty()) {
             throw new BadRequestException("At least one application is required");
         }
+    }
+
+    private ApplicationRole resolveApplicationRole(final Long applicationId, final String roleName) {
+        return applicationRoleRepository
+                .findByApplicationIdAndRoleNameIgnoreCase(applicationId, roleName)
+                .orElseGet(() -> {
+                    final ApplicationRole role = new ApplicationRole();
+                    role.setApplication(applicationRepository.findById(applicationId).orElseThrow());
+                    role.setRoleName(roleName);
+                    return applicationRoleRepository.save(role);
+                });
     }
 }

@@ -1,0 +1,21 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+  flyway:
+    enabled: false
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    com.ndash.identity_framework: DEBUG
+
+management:
+  endpoint:
+    health:
+      show-details: always

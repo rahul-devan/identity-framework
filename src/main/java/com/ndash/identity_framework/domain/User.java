@@ -42,6 +42,7 @@ public class User {
     private LocalDateTime dob;
 
     @Column(unique = true)
+    @Convert(converter = com.ndash.identity_framework.util.SsnEncryptionConverter.class)
     private String ssn;
 
     // -----------------------------

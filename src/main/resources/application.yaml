@@ -1,5 +1,3 @@
-#server:
-#  port: 8082
 spring:
   application:
     name: identity-framework
@@ -8,13 +6,11 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: https://login.microsoftonline.com/${azure.tenant-id}/v2.0
-          secret-key: QzY1NEFEM0JDNkEzQjZDM0Y0NEVCNjE1QTU4Njg1NUI=
-
 
   datasource:
-    url: jdbc:postgresql://coolify.ndashdigital.com:5432/postgres?currentSchema=identity_framework
-    username: postgres
-    password: KuLUmtOr2WPqdjUQ1DuRKnRdfrj61iaiS10maP42gAG40Uu07RwSSh2QXBWIS9gQ
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -26,38 +22,45 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update       # change to update / validate / create-drop as needed
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
         format_sql: true
+        default_schema: identity_framework
+
+  flyway:
+    enabled: false
+    schemas: identity_framework
+    default-schema: identity_framework
+    baseline-on-migrate: true
+    baseline-version: 1
 
 azure:
-  tenant-id: db067b07-979a-4dfa-8f65-2f7e2ed9201d
-  client-id: 2fea369b-c5a4-40b3-8bbf-4634463719fd
-  client-secret: 9sk8Q~Z66a0Z-jyQiaB0Z6wURBeMNkJLx5QMUarh
+  tenant-id: ${AZURE_TENANT_ID}
+  client-id: ${AZURE_CLIENT_ID}
+  client-secret: ${AZURE_CLIENT_SECRET}
   graph:
     scope: https://graph.microsoft.com/.default
+
+jwt:
+  secret: ${JWT_SECRET}
 
 management:
   endpoints:
     web:
       exposure:
-        include: "health,info"
+        include: health,info
   endpoint:
     health:
-      show-details: always
-
-jwt:
-  secret: QzY1NEFEM0JDNkEzQjZDM0Y0NEVCNjE1QTU4Njg1NUI=
-
-jira:
-  api-token: ATATT3xFfGF0oSFcRQ7o5Lhh8oQD1OUw1o0AyFTdHOBLP2nvGm4p08aeZVlrmaNMaCNxftzcJuPB2geOWkuyxI0YomPKuY-oRhyQq0Hq_cxKoqriaYacSZgMoxN6ubOE9BObVDZzszR5YeTuYSNS7ADVJN2cnDhlFDTuf2klgZDJJ9kNljcIOAY=AF29FD23
-  base-url: https://ndashprivatelimited.atlassian.net
-  admin-email: ndashprivatelimited@gmail.com
+      show-details: when-authorized
 
 logging:
   level:
-    org.springframework.security: DEBUG
+    org.springframework.security: INFO
 
-
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger
