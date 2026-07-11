@@ -122,7 +122,7 @@ public class UserServiceImpl implements UserService {
                 User savedUser = userRepository.save(user);
                 if(savedUser.getAzureId() == null){
                     com.microsoft.graph.models.User azureUser =
-                            azureADService.createUser(userDto.getFirstName(), userDto.getEmail());
+                            azureADService.createUser(userDto.getFirstName()+"."+userDto.getLastName(), userDto.getEmail());
                     if (azureUser == null || azureUser.id == null) {
                         log.error("ERROR Creating user in azure for user: {}", userDto.getEmail());
                     }
@@ -133,7 +133,7 @@ public class UserServiceImpl implements UserService {
 
 //             3. Create new user in Azure AD
             com.microsoft.graph.models.User azureUser =
-                    azureADService.createUser(userDto.getFirstName(), userDto.getEmail());
+                    azureADService.createUser(userDto.getFirstName()+"."+userDto.getLastName(), userDto.getEmail());
 
             if (azureUser == null || azureUser.id == null) {
                 log.error("ERROR Creating user in azure for user: {}", userDto.getEmail());
