@@ -75,7 +75,8 @@ public class CompanyService {
 
     public List<CompanyResponseDto> getAllCompanies() {
         return companyRepository.findAll().stream()
-                .filter(c -> c.getStatus() == null || c.getStatus().name().equals("APPROVED")) // Only show approved companies
+                .filter(c -> c.getStatus() == null || c.getStatus().name().equals("APPROVED"))
+                .filter(Company::isEnabled)// Only show approved companies
                 .map(c -> new CompanyResponseDto(
                         c.getId(),
                         c.getName(),

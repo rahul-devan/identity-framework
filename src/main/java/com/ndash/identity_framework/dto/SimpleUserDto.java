@@ -10,5 +10,6 @@ public class SimpleUserDto {
     private String firstName;
     private String lastName;
     private String email;
+    private String companyName;
     private List<UserApplicationDto> applications;
 }

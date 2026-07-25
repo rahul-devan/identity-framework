@@ -14,6 +14,7 @@ import com.ndash.identity_framework.services.AzureADService;
 import com.ndash.identity_framework.services.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -40,6 +41,9 @@ public class UserServiceImpl implements UserService {
     private final UserApplicationRepository userApplicationRepository;
     private final BlueprintRepository blueprintRepository;
     private final CompanyRepository companyRepository;
+
+    @Value("${internal.default-company-name}")
+    private String defaultCompanyName;
 
     @Override
     public UserDto createUser(UserDto userDto, Long loggedInUserId) throws ApiException {
@@ -71,7 +75,7 @@ public class UserServiceImpl implements UserService {
                 user.setLastName(getLastName(existingAzureUser.displayName));
                 user.setPhoneNumber(existingAzureUser.mobilePhone);
                 user.setActive(true);
-                user.setPassword("Test123");
+                user.setPassword(passwordEncoder.encode("Test@123"));
                 user.setSource(UserSource.APP);
 
                 // Assign default role
@@ -229,6 +233,7 @@ public class UserServiceImpl implements UserService {
 //            if(user.)
 
             UserDto dto = UserMapper.toDto(user);
+            dto.setCompanyName(user.getCompany() != null ? user.getCompany().getName() : defaultCompanyName);
 
             // 👇 Add subordinates here
             dto.setSubordinates(getSubordinates(user.getId()));
@@ -611,6 +616,7 @@ public class UserServiceImpl implements UserService {
                     SimpleUserDto dto = new SimpleUserDto();
                     dto.setId(u.getId());
                     dto.setFirstName(u.getFirstName());
+                    dto.setCompanyName(u.getCompany() != null ? u.getCompany().getName() : defaultCompanyName);
                     dto.setLastName(u.getLastName());
                     dto.setEmail(u.getEmail());
                     return dto;

@@ -36,6 +36,7 @@ public class UserDto {
     private Long manager;
     private List<String> blueprints;
     private Long companyId;
+    private String companyName;
     private String countryCode;
     private CompanyResponseDto company;
     private boolean isActive;

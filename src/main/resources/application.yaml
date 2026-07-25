@@ -60,4 +60,6 @@ logging:
   level:
     org.springframework.security: DEBUG
 
+internal:
+  default-company-name: Parent Company
 
