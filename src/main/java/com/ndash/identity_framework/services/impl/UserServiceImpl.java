@@ -211,6 +211,7 @@ public class UserServiceImpl implements UserService {
                     .filter(User::isActive)
                     .map(user -> {
                         UserDto dto = UserMapper.toDto(user);
+                        dto.setCompanyName(user.getCompany() != null ? user.getCompany().getName() : defaultCompanyName);
                         dto.setSubordinates(getSubordinates(user.getId())); // 👈 here
                         return dto;
                     })
