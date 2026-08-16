@@ -2,6 +2,7 @@ package com.ndash.identity_framework.services;
 
 import com.ndash.identity_framework.domain.Application;
 import com.ndash.identity_framework.dto.ApplicationDto;
+import com.ndash.identity_framework.exception.ResourceNotFoundException;
 import com.ndash.identity_framework.dto.UserApplicationDto;
 import com.ndash.identity_framework.mapper.ApplicationMapper;
 import com.ndash.identity_framework.repositories.ApplicationRepository;
@@ -41,7 +42,7 @@ public class ApplicationService {
 
     public ApplicationDto getApplicationById(Long id) {
         Application app = applicationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Application not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + id));
         return ApplicationMapper.toDto(app);
     }
 

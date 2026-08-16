@@ -6,8 +6,12 @@ import com.ndash.identity_framework.domain.enums.RequestStatus;
 import com.ndash.identity_framework.domain.enums.UserSource;
 import com.ndash.identity_framework.dto.CompanyRequestDto;
 import com.ndash.identity_framework.dto.CompanyResponseDto;
+import com.ndash.identity_framework.dto.FetchTypeEnum;
 import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.exception.ApiException;
+import com.ndash.identity_framework.exception.BadRequestException;
+import com.ndash.identity_framework.exception.ResourceNotFoundException;
+import com.ndash.identity_framework.mapper.UserMapper;
 import com.ndash.identity_framework.repositories.CompanyRepository;
 import com.ndash.identity_framework.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -42,7 +45,7 @@ public class CompanyService {
         company.setEnabled(true);
 
         User approver = userRepository.findById(dto.getApproverId())
-                .orElseThrow();
+                .orElseThrow(() -> new ResourceNotFoundException("Approver not found with id: " + dto.getApproverId()));
         company.setApprover(approver);
 
         // -----------------------------
@@ -73,115 +76,102 @@ public class CompanyService {
         companyRepository.save(company);
     }
 
-    public List<CompanyResponseDto> getAllCompanies() {
-        return companyRepository.findAll().stream()
-                .filter(c -> c.getStatus() == null || c.getStatus().name().equals("APPROVED"))
-                .filter(Company::isEnabled)// Only show approved companies
-                .map(c -> new CompanyResponseDto(
-                        c.getId(),
-                        c.getName(),
-                        c.getLocation(),
-                        c.getPhoneNumber(),
-                        c.getApprover() != null ? c.getApprover().getFirstName() : null,
-                        c.getApprover() != null ? c.getApprover().getId() : null,
-                        c.getPrimaryContact() != null
-                                ? c.getPrimaryContact().getId()
-                                : null,
-                        c.getPrimaryContact() != null
-                                ? c.getPrimaryContact().getFirstName() + " " + c.getPrimaryContact().getLastName()
-                                : null,
-                        c.isEnabled()
-                ))
-                .toList();
+    @Transactional(readOnly = true)
+    public List<CompanyResponseDto> getAllCompanies(final FetchTypeEnum fetchType) {
+        Boolean enabledFilter = switch (fetchType) {
+            case ACTIVE -> true;
+            case INACTIVE -> false;
+            case ALL -> null;
+        };
+
+        return companyRepository.findApprovedCompanyResponses(RequestStatus.APPROVED, enabledFilter);
     }
 
     @Transactional
     public void updateCompany(Long id, CompanyRequestDto dto) {
-
-        Company company = companyRepository.findById(id).orElseThrow();
+        Company company = companyRepository.findWithDetailsById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Company not found with id: " + id));
 
         company.setName(dto.getName());
         company.setLocation(dto.getLocation());
         company.setPhoneNumber(dto.getPhoneNumber());
 
-
-        User approver = userRepository.findById(dto.getApproverId()).orElseThrow();
-        company.setApprover(approver);
-
-        User contact = company.getPrimaryContact();
-        if (contact == null) contact = new User();
-
-        if(Objects.nonNull(dto.getContact())) {
-            contact.setFirstName(dto.getContact().getFirstName());
-            contact.setLastName(dto.getContact().getLastName());
-            if (!Objects.isNull(dto.getContact().getEmail())) {
-                contact.setEmail(dto.getContact().getEmail());
-            }
-            if (!Objects.isNull(dto.getContact().getPhoneNumber())) {
-                contact.setPhoneNumber(dto.getContact().getPhoneNumber());
-            }
-            if (!Objects.isNull(dto.getContact().getDob())) {
-                contact.setDob(dto.getContact().getDob().atStartOfDay());
-            }
-            if (!Objects.isNull(dto.getContact().getSsn())) {
-                contact.setSsn(dto.getContact().getSsn());
+        if (dto.getApproverId() != null) {
+            boolean approverChanged = company.getApprover() == null
+                    || !dto.getApproverId().equals(company.getApprover().getId());
+            if (approverChanged) {
+                if (!userRepository.existsById(dto.getApproverId())) {
+                    throw new ResourceNotFoundException("Approver not found with id: " + dto.getApproverId());
+                }
+                company.setApprover(userRepository.getReferenceById(dto.getApproverId()));
             }
         }
 
-        company.setEnabled(dto.getIsEnabled());
-        if(!dto.getIsEnabled()){
-            List<User> users = userRepository.findByCompanyId(company.getId());
-            users.forEach(user -> {
-                user.setActive(false);
-                userRepository.save(user);
-            });
-            log.info("Company {} is disabled. All associated users have been deactivated.", company.getName());
-        } else {
-            List<User> users = userRepository.findByCompanyId(company.getId());
-            users.forEach(user -> {
-                user.setActive(true);
-                userRepository.save(user);
-            });
-            log.info("Company {} is enabled. All associated users have been activated.", company.getName());
+        applyContactUpdates(company, dto);
+
+        Boolean requestedEnabled = dto.getIsEnabled();
+        if (requestedEnabled != null && requestedEnabled != company.isEnabled()) {
+            company.setEnabled(requestedEnabled);
+            int updatedUsers = userRepository.updateActiveByCompanyId(company.getId(), requestedEnabled);
+            log.info(
+                    "Company {} is {}. Updated active status for {} associated users.",
+                    company.getName(),
+                    requestedEnabled ? "enabled" : "disabled",
+                    updatedUsers
+            );
         }
-        company.setPrimaryContact(contact);
 
         companyRepository.save(company);
+    }
+
+    private void applyContactUpdates(Company company, CompanyRequestDto dto) {
+        if (dto.getContact() == null) {
+            return;
+        }
+
+        User contact = company.getPrimaryContact();
+        if (contact == null) {
+            throw new BadRequestException("Primary contact not found for company id: " + company.getId());
+        }
+
+        contact.setFirstName(dto.getContact().getFirstName());
+        contact.setLastName(dto.getContact().getLastName());
+
+        if (dto.getContact().getEmail() != null) {
+            contact.setEmail(dto.getContact().getEmail());
+        }
+        if (dto.getContact().getPhoneNumber() != null) {
+            contact.setPhoneNumber(dto.getContact().getPhoneNumber());
+        }
+        if (dto.getContact().getDob() != null) {
+            contact.setDob(dto.getContact().getDob().atStartOfDay());
+        }
+        if (dto.getContact().getSsn() != null) {
+            contact.setSsn(dto.getContact().getSsn());
+        }
+
+        userRepository.save(contact);
     }
 
     public void deleteCompany(Long id) {
         companyRepository.deleteById(id);
     }
 
+    @Transactional(readOnly = true)
     public List<CompanyResponseDto> getMyCompanies(Long approverId) {
+        return companyRepository.findCompanyResponsesByApproverId(approverId);
+    }
 
-        List<Company> companies =
-                companyRepository.findByApproverId(approverId);
+    @Transactional(readOnly = true)
+    public List<UserDto> getCompanyUsers(Long companyId, Long excludeUserId) throws ApiException {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Company not found with id: " + companyId));
 
-        return companies.stream()
-                .map(company -> {
-
-                    CompanyResponseDto dto = new CompanyResponseDto();
-
-                    dto.setId(company.getId());
-                    dto.setName(company.getName());
-                    dto.setLocation(company.getLocation());
-                    dto.setPhoneNumber(company.getPhoneNumber());
-
-                    if (company.getApprover() != null) {
-                        dto.setApproverId(company.getApprover().getId());
-                    }
-
-                    if (company.getPrimaryContact() != null) {
-                        dto.setPrimaryContactId(
-                                company.getPrimaryContact().getId()
-                        );
-                        dto.setContactName(
-                                company.getPrimaryContact().getFirstName() + " " + company.getPrimaryContact().getLastName()
-                        );
-                    }
-                    dto.setEnabled(company.isEnabled());
-
+        return userRepository.findByCompanyIdAndIdNotWithDetails(companyId, excludeUserId).stream()
+                .map(user -> {
+                    UserDto dto = UserMapper.toDto(user);
+                    dto.setCompanyId(companyId);
+                    dto.setCompanyName(company.getName());
                     return dto;
                 })
                 .toList();

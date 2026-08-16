@@ -4,6 +4,7 @@ import com.ndash.identity_framework.domain.Role;
 import com.ndash.identity_framework.dto.PaginatedResponse;
 import com.ndash.identity_framework.dto.RoleDto;
 import com.ndash.identity_framework.exception.ApiException;
+import com.ndash.identity_framework.exception.ResourceNotFoundException;
 import com.ndash.identity_framework.mapper.RoleMapper;
 import com.ndash.identity_framework.repositories.RoleRepository;
 import com.ndash.identity_framework.services.RoleService;
@@ -41,9 +42,11 @@ public class RoleServiceImpl implements RoleService {
                     .stream()
                     .map(RoleMapper::toSimpleDto)
                     .collect(Collectors.toList());
-        }catch (Exception ex){
+        } catch (ApiException ex) {
+            throw ex;
+        } catch (Exception ex) {
             log.error("Exception occurred while fetching roles: {}", ex.getMessage());
-            throw new ApiException(ex.getMessage());
+            throw new ApiException(ex.getMessage() != null ? ex.getMessage() : "Failed to fetch roles");
         }
     }
 
@@ -59,7 +62,7 @@ public class RoleServiceImpl implements RoleService {
     @Override
     public RoleDto getRoleById(Long id) {
         Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Role not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
         return RoleMapper.toSimpleDto(role);
     }
 

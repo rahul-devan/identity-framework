@@ -2,15 +2,19 @@ package com.ndash.identity_framework.services.impl;
 
 import com.ndash.identity_framework.domain.*;
 import com.ndash.identity_framework.domain.enums.UserSource;
+import com.ndash.identity_framework.dto.FetchTypeEnum;
 import com.ndash.identity_framework.dto.ResetPasswordRequest;
 import com.ndash.identity_framework.dto.SimpleUserDto;
 import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.exception.ApiException;
-import com.ndash.identity_framework.exception.DuplicateResourceException;
+import com.ndash.identity_framework.exception.BadRequestException;
+import com.ndash.identity_framework.exception.ResourceNotFoundException;
 import com.ndash.identity_framework.helper.AzureUserUpdater;
 import com.ndash.identity_framework.mapper.UserMapper;
 import com.ndash.identity_framework.repositories.*;
 import com.ndash.identity_framework.services.AzureADService;
+import com.ndash.identity_framework.services.AzureUserProvisioningService;
+import com.ndash.identity_framework.services.UserCreationPersistence;
 import com.ndash.identity_framework.services.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +26,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
@@ -41,218 +46,105 @@ public class UserServiceImpl implements UserService {
     private final UserApplicationRepository userApplicationRepository;
     private final BlueprintRepository blueprintRepository;
     private final CompanyRepository companyRepository;
+    private final UserCreationPersistence userCreationPersistence;
+    private final AzureUserProvisioningService azureUserProvisioningService;
 
     @Value("${internal.default-company-name}")
     private String defaultCompanyName;
 
     @Override
-    public UserDto createUser(UserDto userDto, Long loggedInUserId) throws ApiException {
-
-        validateUniqueFields(userDto);
-        Role defaultRole = roleRepository.findByName("user").orElse(null); // Need to change this logic later
-        if (defaultRole == null) {
-            throw new RuntimeException("Default role 'user' not found in DB");
-        }
-
-        try {
-            // 1. Check local DB
-            if (userRepository.findByEmail(userDto.getEmail()).isPresent()) {
-                log.warn("User already exists in local database");
-                throw new RuntimeException("User already exists in local database");
-            }
-
-            // 2. Check Azure AD
-            com.microsoft.graph.models.User existingAzureUser =
-                    azureADService.getUserByEmail(userDto.getEmail());
-
-            if (existingAzureUser != null) {
-                // Option A: Sync them into local DB
-                User user = new User();
-                user.setAzureId(existingAzureUser.id);
-                user.setUsername(existingAzureUser.userPrincipalName);
-                user.setEmail(existingAzureUser.mail);
-                user.setFirstName(getFirstName(existingAzureUser.displayName));
-                user.setLastName(getLastName(existingAzureUser.displayName));
-                user.setPhoneNumber(existingAzureUser.mobilePhone);
-                user.setActive(true);
-                user.setPassword(passwordEncoder.encode("Test@123"));
-                user.setSource(UserSource.APP);
-
-                // Assign default role
-                UserRole userRole = new UserRole();
-                userRole.setUser(user);
-                userRole.setRole(defaultRole);
-                user.setUserRoles(Set.of(userRole));
-                Set<Role> assignedRoles;
-                if (userDto.getRoles() != null && !userDto.getRoles().isEmpty()) {
-                    assignedRoles = userDto.getRoles().stream()
-                            .map(roleName -> roleRepository.findByName(roleName).orElse(defaultRole))
-                            .filter(Objects::nonNull)
-                            .collect(Collectors.toSet());
-                    Set<UserRole> userRoles = assignedRoles.stream().map(role -> {
-                        UserRole ur = new UserRole();
-                        ur.setUser(user);
-                        ur.setRole(role);
-                        ur.setId(new UserRoleId(user.getId(), role.getId()));
-                        return ur;
-                    }).collect(Collectors.toSet());
-                    user.setUserRoles(userRoles);
-                    log.info("Assigned roles: {}", assignedRoles);
-                }
-
-                if (userDto.getBlueprints() != null && !userDto.getBlueprints().isEmpty()) {
-
-                    String blueprintName = userDto.getBlueprints().get(0);
-
-                    Blueprint blueprint = blueprintRepository
-                            .findByNameIgnoreCase(blueprintName)
-                            .orElseThrow(() -> new RuntimeException("Invalid blueprint"));
-
-                    user.setBlueprint(blueprint);
-                }
-
-                if(userDto.getCompanyId() != null){
-                    Optional<Company> comppany = companyRepository.findById(userDto.getCompanyId());
-                    if(comppany.isPresent()) {
-                        log.info("Company found for user: {}, company name: {}", userDto.getEmail(), comppany.get().getName());
-                        log.info("Manager is: {}", comppany.get().getApprover() != null ? comppany.get().getApprover().getEmail() : "No Manager");
-                        user.setManager(comppany.get().getApprover());
-                    }
-                } else {
-                    log.info("No companyId provided for user, setting manager as logged in user: {}", loggedInUserId);
-                    user.setManager(userRepository.findById(loggedInUserId).orElse(null));
-                }
-
-                User savedUser = userRepository.save(user);
-                if(savedUser.getAzureId() == null){
-                    com.microsoft.graph.models.User azureUser =
-                            azureADService.createUser(userDto.getFirstName()+"."+userDto.getLastName(), userDto.getEmail());
-                    if (azureUser == null || azureUser.id == null) {
-                        log.error("ERROR Creating user in azure for user: {}", userDto.getEmail());
-                    }
-                }
-                log.info("User already present in azure, synced to database");
-                return UserMapper.toDto(savedUser);
-            }
-
-//             3. Create new user in Azure AD
-            com.microsoft.graph.models.User azureUser =
-                    azureADService.createUser(userDto.getFirstName()+"."+userDto.getLastName(), userDto.getEmail());
-
-            if (azureUser == null || azureUser.id == null) {
-                log.error("ERROR Creating user in azure for user: {}", userDto.getEmail());
-            }
-            log.info("User created in Azure AD");
-
-            // 5. Resolve roles
-            Set<Role> assignedRoles;
-            if (userDto.getRoles() != null && !userDto.getRoles().isEmpty()) {
-                assignedRoles = userDto.getRoles().stream()
-                        .map(roleName -> roleRepository.findByName(roleName).orElse(defaultRole))
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toSet());
-                log.info("Assigned roles: {}", assignedRoles);
-            } else {
-                assignedRoles = Set.of(defaultRole);
-                log.info("Assigned default role only");
-            }
-            // 4. Convert DTO -> Entity
-            User user = UserMapper.toEntity(userDto, assignedRoles);
-            user.setAzureId(azureUser != null ? azureUser.id : null);
-            user.setUsername(userDto.getEmail());
-            user.setSource(UserSource.APP);
-            user.setActive(true);
-            user.setCountryCode(userDto.getCountryCode());
-            user.setPhoneNumber(userDto.getPhoneNumber());
-            user.setPassword(passwordEncoder.encode("Test@123"));
-
-            if (userDto.getBlueprints() != null && !userDto.getBlueprints().isEmpty()) {
-
-                String blueprintName = userDto.getBlueprints().get(0);
-
-                Blueprint blueprint = blueprintRepository
-                        .findByNameIgnoreCase(blueprintName)
-                        .orElseThrow(() -> new RuntimeException("Invalid blueprint"));
-
-                user.setBlueprint(blueprint);
-            }
-
-            if(userDto.getCompanyId() != null){
-                Optional<Company> comppany = companyRepository.findById(userDto.getCompanyId());
-                if(comppany.isPresent()) {
-                    log.info("Company found for user: {}, company name: {}", userDto.getEmail(), comppany.get().getName());
-                    log.info("Manager is: {}", comppany.get().getApprover() != null ? comppany.get().getApprover().getEmail() : "No Manager");
-                    user.setManager(comppany.get().getApprover());
-                }
-            } else {
-                log.info("No companyId provided for user, setting manager as logged in user: {}", loggedInUserId);
-                user.setManager(userRepository.findById(loggedInUserId).orElse(null));
-            }
-
-            // 7. Save to DB
-            User savedUser = userRepository.save(user);
-            log.info("User added to database with username: {}", savedUser.getUsername());
-
-            return UserMapper.toDto(savedUser);
-
-        } catch (Exception ex) {
-            log.error("Exception occurred while creating user: {}", ex.getMessage(), ex);
-            throw new ApiException(ex.getMessage());
-        }
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public UserDto createUser(UserDto userDto, Long loggedInUserId) {
+        User savedUser = userCreationPersistence.createAndSave(userDto, loggedInUserId);
+        azureUserProvisioningService.provisionUserAsync(
+                savedUser.getId(),
+                userDto.getFirstName(),
+                userDto.getLastName(),
+                userDto.getEmail()
+        );
+        log.info("User added to database with username: {}", savedUser.getUsername());
+        return UserMapper.toDto(savedUser);
     }
 
     @Override
-    public List<UserDto> getAllUsers() throws ApiException {
+    @Transactional(readOnly = true)
+    public List<UserDto> getAllUsers(final FetchTypeEnum fetchTypeEnum) throws ApiException {
         try {
-            List<User> users = userRepository.findAll();
+            List<User> users = findUsersByFetchType(fetchTypeEnum);
+            Map<Long, Set<SimpleUserDto>> subordinatesByManager = loadActiveSubordinatesByManager();
+
             log.info("Fetched all users, total size: {}", users.size());
 
             return users.stream()
-                    .filter(User::isActive)
                     .map(user -> {
                         UserDto dto = UserMapper.toDto(user);
                         dto.setCompanyName(user.getCompany() != null ? user.getCompany().getName() : defaultCompanyName);
-                        dto.setSubordinates(getSubordinates(user.getId())); // 👈 here
+                        dto.setSubordinates(subordinatesByManager.getOrDefault(user.getId(), Collections.emptySet()));
                         return dto;
                     })
                     .collect(Collectors.toList());
 
+        } catch (ApiException ex) {
+            throw ex;
         } catch (Exception ex) {
             log.error("Exception occurred while fetching users: {}", ex.getMessage());
-            throw new ApiException(ex.getMessage());
+            throw new ApiException(ex.getMessage() != null ? ex.getMessage() : "Failed to fetch users");
         }
     }
 
-    @Override
-    public UserDto getUserById(Long id) {
-        try {
+    private List<User> findUsersByFetchType(FetchTypeEnum fetchTypeEnum) {
+        return switch (fetchTypeEnum) {
+            case ALL -> userRepository.findAllWithDetails();
+            case ACTIVE -> userRepository.findAllActiveWithDetails();
+            case INACTIVE -> userRepository.findAllInactiveWithDetails();
+        };
+    }
 
-            User user = userRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+    private Map<Long, Set<SimpleUserDto>> loadActiveSubordinatesByManager() {
+        return userRepository.findAllActiveSubordinateRows(defaultCompanyName).stream()
+                .collect(Collectors.groupingBy(
+                        SubordinateProjection::getManagerId,
+                        Collectors.mapping(this::toSimpleUserDto, Collectors.toSet())
+                ));
+    }
+
+    private SimpleUserDto toSimpleUserDto(SubordinateProjection projection) {
+        return new SimpleUserDto(
+                projection.getId(),
+                projection.getFirstName(),
+                projection.getLastName(),
+                projection.getEmail(),
+                projection.getCompanyName(),
+                projection.getActive(),
+                projection.getManagerId(),
+                projection.getManagerName()
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserDto getUserById(Long id, final FetchTypeEnum fetchTypeEnum) {
+        try {
+            User user = userRepository.findWithDetailsById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
             List<UserApplication> applications = userApplicationRepository.findByUserIdAndActiveTrue(id);
-//            if(user.)
 
             UserDto dto = UserMapper.toDto(user);
             dto.setCompanyName(user.getCompany() != null ? user.getCompany().getName() : defaultCompanyName);
-
-            // 👇 Add subordinates here
-            dto.setSubordinates(getSubordinates(user.getId()));
-
-            // --------------------------------------
-            // Main user applications
-            // --------------------------------------
+            dto.setSubordinates(getSubordinates(user.getId(), fetchTypeEnum));
             dto.setApplications(
-                    userApplicationRepository.findByUserIdAndActiveTrue(user.getId())
-                            .stream()
+                    applications.stream()
                             .map(UserMapper::toUserApplicationDto)
                             .toList()
             );
 
             return dto;
-        }catch (Exception ex) {
+        } catch (ResourceNotFoundException ex) {
+            throw ex;
+        } catch (Exception ex) {
             log.error("Exception occurred while fetching user by id: {}", ex.getMessage());
-            throw new RuntimeException(ex.getMessage());
+            throw new ApiException(ex.getMessage() != null ? ex.getMessage() : "Failed to fetch user");
         }
     }
 
@@ -319,13 +211,13 @@ public class UserServiceImpl implements UserService {
     @Override
     public void deleteUser(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
         // 1. Delete from Azure AD
         try {
             azureADService.deleteUser(user.getUsername());
         } catch (Exception ex) {
-            throw new RuntimeException("Failed to delete user from Azure AD: " + ex.getMessage());
+            throw new ApiException("Failed to delete user from Azure AD: " + ex.getMessage());
         }
 
         // 2. Delete from local DB
@@ -359,6 +251,11 @@ public class UserServiceImpl implements UserService {
                         s.setFirstName(u.getFirstName());
                         s.setLastName(u.getLastName());
                         s.setEmail(u.getEmail());
+                        s.setActive(u.isActive());
+                        if (u.getManager() != null) {
+                            s.setManagerId(u.getManager().getId());
+                            s.setManagerName(formatFullName(u.getManager().getFirstName(), u.getManager().getLastName()));
+                        }
                         return s;
                     })
                     .collect(Collectors.toSet());
@@ -371,130 +268,120 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDto updateUser(Long userId, UserDto userDto) throws ApiException {
-
         try {
+            User existingUser = userRepository.findWithDetailsById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
-            // 1. Get existing user
-            User existingUser = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-
-            // 2. Update Azure AD (optional)
-            if (existingUser.getAzureId() != null) {
-
-//                azureADService.updateUser(
-//                        existingUser.getAzureId(),
-//                        userDto.getFirstName(),
-//                        userDto.getLastName(),
-//                        userDto.getPhoneNumber()
-//                );
-
-                log.info("Azure AD user updated");
-            }
-
-            // 3. Update local DB fields
-            if (userDto.getFirstName() != null) {
-                existingUser.setFirstName(userDto.getFirstName());
-            }
-
-            if (userDto.getLastName() != null) {
-                existingUser.setLastName(userDto.getLastName());
-            }
-
-            if (userDto.getPhoneNumber() != null) {
-                existingUser.setPhoneNumber(userDto.getPhoneNumber());
-            }
-
-            if (userDto.getEmail() != null) {
-                existingUser.setEmail(userDto.getEmail());
-            }
-
-            if (userDto.getDob() != null) {
-                existingUser.setDob(userDto.getDob());
-            }
-
-            if (userDto.getSsn() != null) {
-                existingUser.setSsn(userDto.getSsn());
-            }
-
-            // 4. Update roles
-            if (userDto.getRoles() != null && !userDto.getRoles().isEmpty()) {
-                // 1. Fetch all requested roles in one query
-                Set<String> requestedRoleNames = new HashSet<>(userDto.getRoles());
-
-                Set<Role> requestedRoles = new HashSet<>(
-                        roleRepository.findByNameIn(requestedRoleNames)
-                );
-
-                if (requestedRoles.size() != requestedRoleNames.size()) {
-                    throw new RuntimeException("One or more roles are invalid");
-                }
-
-                // 2. Existing mappings
-                Set<UserRole> existingUserRoles = existingUser.getUserRoles();
-
-                // 3. Requested role IDs
-                Set<Long> requestedRoleIds = requestedRoles.stream()
-                        .map(Role::getId)
-                        .collect(Collectors.toSet());
-
-                // 4. Remove roles no longer selected
-                existingUserRoles.removeIf(
-                        userRole -> !requestedRoleIds.contains(userRole.getRole().getId())
-                );
-
-                // 5. Existing role IDs after cleanup
-                Set<Long> existingRoleIds = existingUserRoles.stream()
-                        .map(userRole -> userRole.getRole().getId())
-                        .collect(Collectors.toSet());
-
-                // 6. Add only missing roles
-                for (Role role : requestedRoles) {
-                    if (!existingRoleIds.contains(role.getId())) {
-                        UserRole userRole = new UserRole();
-                        userRole.setUser(existingUser);
-                        userRole.setRole(role);
-                        existingUserRoles.add(userRole);
-                    }
-                }
-            }
-            if(Objects.nonNull(userDto.getCountryCode())){
-                existingUser.setCountryCode(userDto.getCountryCode());
-            }
+            applyBasicFields(existingUser, userDto);
+            applyRoles(existingUser, userDto);
+            applyBlueprint(existingUser, userDto);
+            applyCompanyAndManager(existingUser, userDto);
 
             if (Objects.isNull(existingUser.getSource())) {
                 UserSource source = existingUser.getAzureId() != null ? UserSource.ENTRA : UserSource.APP;
                 existingUser.setSource(source);
             }
 
-            if (userDto.getBlueprints() != null && !userDto.getBlueprints().isEmpty()) {
-
-                String blueprintName = userDto.getBlueprints().get(0);
-
-                Blueprint blueprint = blueprintRepository
-                        .findByNameIgnoreCase(blueprintName)
-                        .orElseThrow(() -> new RuntimeException("Invalid blueprint"));
-
-                existingUser.setBlueprint(blueprint);
-            }
-            if (userDto.getCompanyId() != null) {
-                Company company = companyRepository.findById(userDto.getCompanyId())
-                        .orElseThrow(() -> new RuntimeException("Company not found"));
-                existingUser.setCompany(company);
-                if (company.getApprover() != null) {
-                    existingUser.setManager(company.getApprover());
-                }
-            }
-
-            // 5. Save
             User updatedUser = userRepository.save(existingUser);
-
             log.info("User updated successfully: {}", updatedUser.getUsername());
 
-            return UserMapper.toDto(updatedUser);
-
+            UserDto dto = UserMapper.toDto(updatedUser);
+            dto.setCompanyName(updatedUser.getCompany() != null
+                    ? updatedUser.getCompany().getName()
+                    : defaultCompanyName);
+            return dto;
+        } catch (ApiException ex) {
+            throw ex;
         } catch (Exception ex) {
             log.error("Exception occurred while updating user: {}", ex.getMessage(), ex);
-            throw new ApiException(ex.getMessage());
+            throw new ApiException(ex.getMessage() != null ? ex.getMessage() : "Failed to update user");
+        }
+    }
+
+    private void applyBasicFields(User existingUser, UserDto userDto) {
+        if (userDto.getFirstName() != null) {
+            existingUser.setFirstName(userDto.getFirstName());
+        }
+        if (userDto.getLastName() != null) {
+            existingUser.setLastName(userDto.getLastName());
+        }
+        if (userDto.getPhoneNumber() != null) {
+            existingUser.setPhoneNumber(userDto.getPhoneNumber());
+        }
+        if (userDto.getEmail() != null) {
+            existingUser.setEmail(userDto.getEmail());
+        }
+        if (userDto.getDob() != null) {
+            existingUser.setDob(userDto.getDob());
+        }
+        if (userDto.getSsn() != null) {
+            existingUser.setSsn(userDto.getSsn());
+        }
+        if (Objects.nonNull(userDto.getCountryCode())) {
+            existingUser.setCountryCode(userDto.getCountryCode());
+        }
+    }
+
+    private void applyRoles(User existingUser, UserDto userDto) {
+        if (userDto.getRoles() == null || userDto.getRoles().isEmpty()) {
+            return;
+        }
+
+        Set<String> requestedRoleNames = new HashSet<>(userDto.getRoles());
+        Set<Role> requestedRoles = new HashSet<>(roleRepository.findByNameIn(requestedRoleNames));
+
+        if (requestedRoles.size() != requestedRoleNames.size()) {
+            throw new BadRequestException("One or more roles are invalid");
+        }
+
+        Set<UserRole> existingUserRoles = existingUser.getUserRoles();
+        Set<Long> requestedRoleIds = requestedRoles.stream()
+                .map(Role::getId)
+                .collect(Collectors.toSet());
+
+        existingUserRoles.removeIf(userRole -> !requestedRoleIds.contains(userRole.getRole().getId()));
+
+        Set<Long> existingRoleIds = existingUserRoles.stream()
+                .map(userRole -> userRole.getRole().getId())
+                .collect(Collectors.toSet());
+
+        for (Role role : requestedRoles) {
+            if (!existingRoleIds.contains(role.getId())) {
+                UserRole userRole = new UserRole();
+                userRole.setUser(existingUser);
+                userRole.setRole(role);
+                existingUserRoles.add(userRole);
+            }
+        }
+    }
+
+    private void applyBlueprint(User existingUser, UserDto userDto) {
+        if (userDto.getBlueprints() == null || userDto.getBlueprints().isEmpty()) {
+            return;
+        }
+
+        String blueprintName = userDto.getBlueprints().get(0);
+        Blueprint blueprint = blueprintRepository.findByNameIgnoreCase(blueprintName)
+                .orElseThrow(() -> new BadRequestException("Invalid blueprint"));
+        existingUser.setBlueprint(blueprint);
+    }
+
+    private void applyCompanyAndManager(User existingUser, UserDto userDto) {
+        if (userDto.getCompanyId() != null) {
+            Company company = companyRepository.findWithApproverById(userDto.getCompanyId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Company not found with id: " + userDto.getCompanyId()));
+            existingUser.setCompany(company);
+            if (company.getApprover() != null) {
+                existingUser.setManager(company.getApprover());
+            }
+        }
+
+        if (userDto.getManager() != null) {
+            Long managerId = userDto.getManager();
+            if (!userRepository.existsById(managerId)) {
+                throw new BadRequestException("Invalid manager with id: " + managerId);
+            }
+            existingUser.setManager(userRepository.getReferenceById(managerId));
         }
     }
 
@@ -504,12 +391,12 @@ public class UserServiceImpl implements UserService {
         try {
 
             User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
             String loggedInEmail = jwt.getSubject();
 
             User loggedInUser = userRepository.findByEmail(loggedInEmail)
-                    .orElseThrow(() -> new RuntimeException("Logged in user not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Logged in user not found"));
 
             boolean isAdmin = loggedInUser.getUserRoles().stream()
                     .anyMatch(role -> role.getRole().getName().equalsIgnoreCase("administration") || role.getRole().getName().equalsIgnoreCase("super_admin"));
@@ -518,7 +405,7 @@ public class UserServiceImpl implements UserService {
             if (isAdmin) {
 
                 if (request.getNewPassword() == null || request.getNewPassword().isBlank()) {
-                    throw new RuntimeException("New password is required");
+                    throw new BadRequestException("New password is required");
                 }
 
                 user.setPassword(passwordEncoder.encode(request.getNewPassword()));
@@ -531,15 +418,15 @@ public class UserServiceImpl implements UserService {
 
             // 🔹 NORMAL USER flow
             if (!loggedInUser.getId().equals(userId)) {
-                throw new RuntimeException("You can only change your own password");
+                throw new BadRequestException("You can only change your own password");
             }
 
             if (request.getOldPassword() == null || request.getNewPassword() == null) {
-                throw new RuntimeException("Old password and new password are required");
+                throw new BadRequestException("Old password and new password are required");
             }
 
             if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
-                throw new RuntimeException("Old password is incorrect");
+                throw new BadRequestException("Old password is incorrect");
             }
 
             user.setPassword(passwordEncoder.encode(request.getNewPassword()));
@@ -547,9 +434,11 @@ public class UserServiceImpl implements UserService {
 
             log.info("User {} changed their password", user.getEmail());
 
+        } catch (ApiException ex) {
+            throw ex;
         } catch (Exception ex) {
             log.error("Error resetting password", ex);
-            throw new ApiException(ex.getMessage());
+            throw new ApiException(ex.getMessage() != null ? ex.getMessage() : "Failed to reset password");
         }
     }
 
@@ -561,9 +450,11 @@ public class UserServiceImpl implements UserService {
             return users.stream()
                     .map(UserMapper::toDto)
                     .collect(Collectors.toList());
+        } catch (ApiException ex) {
+            throw ex;
         } catch (Exception ex) {
             log.error("Exception occurred while fetching users by department: {}", ex.getMessage());
-            throw new ApiException(ex.getMessage());
+            throw new ApiException(ex.getMessage() != null ? ex.getMessage() : "Failed to fetch users by department");
         }
     }
 
@@ -610,39 +501,19 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    private Set<SimpleUserDto> getSubordinates(Long userId) {
-
-        return userRepository.findByManagerId(userId).stream().filter(User::isActive)
-                .map(u -> {
-                    SimpleUserDto dto = new SimpleUserDto();
-                    dto.setId(u.getId());
-                    dto.setFirstName(u.getFirstName());
-                    dto.setCompanyName(u.getCompany() != null ? u.getCompany().getName() : defaultCompanyName);
-                    dto.setLastName(u.getLastName());
-                    dto.setEmail(u.getEmail());
-                    return dto;
-                })
-                .collect(Collectors.toSet());
+    private Set<SimpleUserDto> getSubordinates(Long userId, final FetchTypeEnum fetchTypeEnum) {
+        List<SimpleUserDto> subordinates = switch (fetchTypeEnum) {
+            case ALL -> userRepository.findSubordinateProjectionsByManagerId(userId, defaultCompanyName);
+            case ACTIVE -> userRepository.findActiveSubordinateProjectionsByManagerId(userId, defaultCompanyName);
+            case INACTIVE -> userRepository.findInactiveSubordinateProjectionsByManagerId(userId, defaultCompanyName);
+        };
+        return new HashSet<>(subordinates);
     }
 
-    private void validateUniqueFields(UserDto userDto) throws ApiException {
-
-        if (userRepository.existsByEmail(userDto.getEmail())) {
-            throw new DuplicateResourceException("A user with email '" +
-                    userDto.getEmail() + "' already exists.");
-        }
-
-        if (userDto.getPhoneNumber() != null &&
-                userRepository.existsByPhoneNumber(userDto.getPhoneNumber())) {
-            throw new DuplicateResourceException("A user with mobile number '" +
-                    userDto.getPhoneNumber() + "' already exists.");
-        }
-
-        if (userDto.getSsn() != null &&
-                userRepository.existsBySsn(userDto.getSsn())) {
-            throw new DuplicateResourceException("A user with SSN '" +
-                    userDto.getSsn() + "' already exists.");
-        }
+    private static String formatFullName(String firstName, String lastName) {
+        String first = firstName != null ? firstName.trim() : "";
+        String last = lastName != null ? lastName.trim() : "";
+        return (first + " " + last).trim();
     }
 
 }

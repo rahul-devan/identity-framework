@@ -28,7 +28,8 @@ public class SecurityConfig {
     private String secret;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   SecurityJsonHandlers securityJsonHandlers) throws Exception {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
@@ -52,8 +53,15 @@ public class SecurityConfig {
                         authenticated()
                         .anyRequest().permitAll()
                 )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(securityJsonHandlers)
+                        .accessDeniedHandler(securityJsonHandlers)
+                )
                 .oauth2ResourceServer(resourceServer ->
-                        resourceServer.jwt(Customizer.withDefaults())
+                        resourceServer
+                                .authenticationEntryPoint(securityJsonHandlers)
+                                .accessDeniedHandler(securityJsonHandlers)
+                                .jwt(Customizer.withDefaults())
                 );
 
         return http.build();
@@ -98,6 +106,11 @@ public class SecurityConfig {
                 "Content-Type",
                 "Accept",
                 "Origin"
+        ));
+
+        configuration.setExposedHeaders(List.of(
+                "Content-Type",
+                "Authorization"
         ));
 
         UrlBasedCorsConfigurationSource source =
