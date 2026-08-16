@@ -43,20 +43,12 @@ public class DelegateServiceImpl implements DelegateService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<DelegateRequestResponseDTO> getPendingRequests(Long departmentId) {
-
-        return delegateRequestRepository
-                .findByTargetDepartmentIdAndStatus(departmentId, RequestStatus.PENDING)
-                .stream()
-                .map(req -> DelegateRequestResponseDTO.builder()
-                        .id(req.getId())
-                        .requesterName(req.getRequester().getFirstName() + " " + req.getRequester().getLastName())
-                        .departmentName(req.getTargetDepartment().getName())
-                        .status(req.getStatus().name())
-                        .comments(req.getComments())
-                        .requestedAt(req.getRequestedAt())
-                        .build()
-                ).toList();
+        return delegateRequestRepository.findPendingRequestResponsesByDepartmentId(
+                departmentId,
+                RequestStatus.PENDING
+        );
     }
 
     @Override
@@ -91,6 +83,7 @@ public class DelegateServiceImpl implements DelegateService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<DelegatedUserDto> getDelegatedUsers(Long userId) {
 
         List<Long> deptIds = accessRepository.findByUserId(userId)
@@ -116,22 +109,9 @@ public class DelegateServiceImpl implements DelegateService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<DelegateRequestResponseDTO> getMyRequests(Long userId) {
-
-        return delegateRequestRepository.findByRequesterId(userId)
-                .stream()
-                .filter(req -> req.getStatus() != RequestStatus.REVOKED)
-                .map(req -> DelegateRequestResponseDTO.builder()
-                        .id(req.getId())
-                        .requesterName(req.getRequester().getFirstName() + " " + req.getRequester().getLastName())
-                        .departmentName(req.getTargetDepartment().getName())
-                        .status(req.getStatus().name())
-                        .comments(req.getComments())
-                        .requestedAt(req.getRequestedAt())
-                        .actionedAt(req.getActionedAt() != null ? req.getActionedAt() : null)
-                        .actionedByName(req.getActionedBy() != null ? req.getActionedBy().getFirstName() + " " + req.getActionedBy().getLastName() : "")
-                        .build()
-                ).toList();
+        return delegateRequestRepository.findMyRequestResponsesByRequesterId(userId);
     }
 
     @Override

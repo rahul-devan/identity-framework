@@ -124,28 +124,14 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public UserDto getUserById(Long id, final FetchTypeEnum fetchTypeEnum) {
-        try {
-            User user = userRepository.findWithDetailsById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        User user = userRepository.findWithDetailsById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
-            List<UserApplication> applications = userApplicationRepository.findByUserIdAndActiveTrue(id);
-
-            UserDto dto = UserMapper.toDto(user);
-            dto.setCompanyName(user.getCompany() != null ? user.getCompany().getName() : defaultCompanyName);
-            dto.setSubordinates(getSubordinates(user.getId(), fetchTypeEnum));
-            dto.setApplications(
-                    applications.stream()
-                            .map(UserMapper::toUserApplicationDto)
-                            .toList()
-            );
-
-            return dto;
-        } catch (ResourceNotFoundException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            log.error("Exception occurred while fetching user by id: {}", ex.getMessage());
-            throw new ApiException(ex.getMessage() != null ? ex.getMessage() : "Failed to fetch user");
-        }
+        UserDto dto = UserMapper.toDto(user);
+        dto.setCompanyName(user.getCompany() != null ? user.getCompany().getName() : defaultCompanyName);
+        dto.setSubordinates(getSubordinates(user.getId(), fetchTypeEnum));
+        dto.setApplications(userApplicationRepository.findActiveApplicationDtosByUserId(id));
+        return dto;
     }
 
 
@@ -225,6 +211,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<UserDto> searchUsersByUsername(String username, int page, int size) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("username").ascending());
@@ -232,35 +219,12 @@ public class UserServiceImpl implements UserService {
         Page<User> userPage =
                 userRepository.findByUsernameContainingIgnoreCaseAndActiveTrue(username, pageable);
 
-        // 👇 Fetch all users once
-        List<User> allUsers = userRepository.findAll();
-
-        Map<Long, List<User>> subMap = allUsers.stream()
-                .filter(u -> u.getManager() != null)
-                .collect(Collectors.groupingBy(u -> u.getManager().getId()));
+        Map<Long, Set<SimpleUserDto>> subordinatesByManager = loadActiveSubordinatesByManager();
 
         return userPage.map(user -> {
             UserDto dto = UserMapper.toDto(user);
-
-            List<User> subs = subMap.getOrDefault(user.getId(), Collections.emptyList());
-
-            Set<SimpleUserDto> subDtos = subs.stream()
-                    .map(u -> {
-                        SimpleUserDto s = new SimpleUserDto();
-                        s.setId(u.getId());
-                        s.setFirstName(u.getFirstName());
-                        s.setLastName(u.getLastName());
-                        s.setEmail(u.getEmail());
-                        s.setActive(u.isActive());
-                        if (u.getManager() != null) {
-                            s.setManagerId(u.getManager().getId());
-                            s.setManagerName(formatFullName(u.getManager().getFirstName(), u.getManager().getLastName()));
-                        }
-                        return s;
-                    })
-                    .collect(Collectors.toSet());
-
-            dto.setSubordinates(subDtos);
+            dto.setCompanyName(user.getCompany() != null ? user.getCompany().getName() : defaultCompanyName);
+            dto.setSubordinates(subordinatesByManager.getOrDefault(user.getId(), Collections.emptySet()));
             return dto;
         });
     }
@@ -443,6 +407,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<UserDto> getUsersByDepartment(Long departmentId) throws ApiException {
         try {
             List<User> users = userRepository.findByDepartmentIdAndActiveTrue(departmentId);
@@ -459,6 +424,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<UserDto> getAllManagers() throws ApiException {
         try {
 

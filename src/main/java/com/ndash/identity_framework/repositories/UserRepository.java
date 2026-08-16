@@ -9,14 +9,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
+    @EntityGraph(attributePaths = {"userRoles", "userRoles.role"})
     Optional<User> findByAzureId(String azureId);
     Optional<User> findByEmail(String email);
     List<User> findByActiveTrue();
@@ -45,13 +44,23 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<SubordinateProjection> findAllActiveSubordinateRows(
             @Param("defaultCompanyName") String defaultCompanyName);
 
+    @EntityGraph(attributePaths = {"userRoles", "userRoles.role", "blueprint", "company", "manager"})
     Page<User> findByUsernameContainingIgnoreCaseAndActiveTrue(String username, Pageable pageable);
     List<User> findByDepartmentIdAndActiveTrue(Long departmentId);
     List<User> findByDepartmentIdIn(List<Long> departmentIds);
     List<User> findByManagerId(Long managerId);
 
     @EntityGraph(attributePaths = {"userRoles", "userRoles.role", "blueprint", "company", "manager"})
-    Optional<User> findWithDetailsById(Long id);
+    @Query("""
+            SELECT DISTINCT u FROM User u
+            LEFT JOIN FETCH u.manager
+            LEFT JOIN FETCH u.company
+            LEFT JOIN FETCH u.blueprint
+            LEFT JOIN FETCH u.userRoles ur
+            LEFT JOIN FETCH ur.role
+            WHERE u.id = :id
+            """)
+    Optional<User> findWithDetailsById(@Param("id") Long id);
 
     @Query("""
             SELECT new com.ndash.identity_framework.dto.SimpleUserDto(

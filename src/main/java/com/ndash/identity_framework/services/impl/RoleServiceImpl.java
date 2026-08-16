@@ -1,7 +1,6 @@
 package com.ndash.identity_framework.services.impl;
 
 import com.ndash.identity_framework.domain.Role;
-import com.ndash.identity_framework.dto.PaginatedResponse;
 import com.ndash.identity_framework.dto.RoleDto;
 import com.ndash.identity_framework.exception.ApiException;
 import com.ndash.identity_framework.exception.ResourceNotFoundException;
@@ -13,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,6 +34,7 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<RoleDto> getAllRoles() throws ApiException {
         try {
             List<Role> roles = roleRepository.findAll();
@@ -51,15 +52,17 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<RoleDto> searchRolesByName(String name, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        List<Role> roles = roleRepository.findByNameContainingIgnoreCase(name);
-        return roles.stream()
+        Page<Role> rolePage = roleRepository.findByNameContainingIgnoreCase(name, pageable);
+        return rolePage.getContent().stream()
                 .map(RoleMapper::toSimpleDto)
                 .collect(Collectors.toList());
     }
 
     @Override
+    @Transactional(readOnly = true)
     public RoleDto getRoleById(Long id) {
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));

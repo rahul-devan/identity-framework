@@ -6,6 +6,7 @@ import com.ndash.identity_framework.repositories.DepartmentRepository;
 import com.ndash.identity_framework.services.DepartmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -17,6 +18,7 @@ public class DepartmentServiceImpl implements DepartmentService {
     private final DepartmentRepository departmentRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public List<DepartmentResponseDTO> getAllDepartments() {
         return departmentRepository.findAll()
                 .stream()
