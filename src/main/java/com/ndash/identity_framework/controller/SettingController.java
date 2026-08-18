@@ -1,7 +1,9 @@
 package com.ndash.identity_framework.controller;
 
+import com.ndash.identity_framework.dto.ApiResponse;
 import com.ndash.identity_framework.services.SettingService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,24 +20,23 @@ public class SettingController {
     private static final String SESSION_TIMEOUT_UNIT_KEY = "jwt.session.timeout.unit";
 
     @GetMapping
-    public ResponseEntity<Map<String, Object>> getSettings() {
-        return ResponseEntity.ok(service.getAllSettings());
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSettings() {
+        return ResponseEntity.ok(ApiResponse.success(service.getAllSettings(), HttpStatus.OK.value()));
     }
 
     @PostMapping
-    public ResponseEntity<?> saveSettings(@RequestBody Map<String, String> settings) {
+    public ResponseEntity<ApiResponse<String>> saveSettings(@RequestBody Map<String, String> settings) {
         service.saveAll(settings);
-        return ResponseEntity.ok("Settings saved");
+        return ResponseEntity.ok(ApiResponse.success("Settings saved", HttpStatus.OK.value()));
     }
 
     @GetMapping("/security")
-    public ResponseEntity<Map<String, String>> getSecuritySettings() {
-
+    public ResponseEntity<ApiResponse<Map<String, String>>> getSecuritySettings() {
         Map<String, Object> settings = service.getAllSettings();
 
-        return ResponseEntity.ok(Map.of(
+        return ResponseEntity.ok(ApiResponse.success(Map.of(
                 "value", String.valueOf(settings.getOrDefault(SESSION_TIMEOUT_KEY, "1")),
                 "unit", String.valueOf(settings.getOrDefault(SESSION_TIMEOUT_UNIT_KEY, "HOURS"))
-        ));
+        ), HttpStatus.OK.value()));
     }
 }

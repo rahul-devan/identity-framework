@@ -17,10 +17,14 @@ import java.util.List;
 public class AzureADService {
 
     private final GraphServiceClient<Request> graphClient;
+    private final AzureUpnGenerator upnGenerator;
 
     public AzureADService(@Value("${azure.client-id}") String clientId,
                           @Value("${azure.client-secret}") String clientSecret,
-                          @Value("${azure.tenant-id}") String tenantId) {
+                          @Value("${azure.tenant-id}") String tenantId,
+                          AzureUpnGenerator upnGenerator) {
+
+        this.upnGenerator = upnGenerator;
 
         ClientSecretCredential credential = new ClientSecretCredentialBuilder()
                 .clientId(clientId)
@@ -38,11 +42,16 @@ public class AzureADService {
         return graphClient.users().buildRequest().get().getCurrentPage();
     }
 
-    public User createUser(String displayName, String mail) {
+    public User createUser(String firstName, String lastName, String mail, Long userId) {
+        String upnLocalPart = generateUniqueUpnLocalPart(mail, firstName, lastName, userId);
+        String upn = upnGenerator.buildUpn(upnLocalPart);
+
         User user = new User();
-        user.displayName = displayName;
-        user.mailNickname = mail.split("@")[0];
-        user.userPrincipalName = displayName + "@NETORGFT16179011.onmicrosoft.com";
+        user.displayName = firstName + " " + lastName;
+        user.givenName = firstName;
+        user.surname = lastName;
+        user.mailNickname = upnLocalPart;
+        user.userPrincipalName = upn;
         user.accountEnabled = true;
         user.passwordProfile = new PasswordProfile();
         user.mail = mail;
@@ -50,6 +59,35 @@ public class AzureADService {
         user.passwordProfile.forceChangePasswordNextSignIn = true;
 
         return graphClient.users().buildRequest().post(user);
+    }
+
+    public String generateUniqueUpnLocalPart(String email, String firstName, String lastName, Long userId) {
+        for (String base : upnGenerator.candidateBases(email, firstName, lastName, userId)) {
+            String candidate = upnGenerator.truncate(base);
+            if (!upnLocalPartExists(candidate)) {
+                return candidate;
+            }
+
+            for (int suffix = 2; suffix <= upnGenerator.getMaxSuffixAttempts(); suffix++) {
+                String suffixed = upnGenerator.truncate(base + suffix);
+                if (!upnLocalPartExists(suffixed)) {
+                    return suffixed;
+                }
+            }
+        }
+
+        throw new IllegalStateException("Could not generate unique UPN for user " + userId);
+    }
+
+    public boolean upnLocalPartExists(String localPart) {
+        String upn = upnGenerator.buildUpn(localPart);
+        List<User> users = graphClient.users()
+                .buildRequest()
+                .filter("userPrincipalName eq '" + escapeODataValue(upn) + "'")
+                .get()
+                .getCurrentPage();
+
+        return !users.isEmpty();
     }
 
     public void deleteUser(String userId) {
@@ -63,13 +101,12 @@ public class AzureADService {
     public com.microsoft.graph.models.User getUserByEmail(String email) {
         List<com.microsoft.graph.models.User> users = graphClient.users()
                 .buildRequest()
-                .filter("mail eq '" + email + "'")
+                .filter("mail eq '" + escapeODataValue(email) + "'")
                 .get()
                 .getCurrentPage();
 
         return users.isEmpty() ? null : users.get(0);
     }
-
 
     public void updateUser(String azureId, String firstName, String lastName, String phone) {
 
@@ -83,6 +120,7 @@ public class AzureADService {
                 .patch(user);
     }
 
-
+    private String escapeODataValue(String value) {
+        return value.replace("'", "''");
+    }
 }
-

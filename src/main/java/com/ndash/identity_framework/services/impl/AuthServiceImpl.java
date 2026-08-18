@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
@@ -51,6 +52,7 @@ public class AuthServiceImpl implements AuthService {
 
 
     @Override
+    @Transactional(readOnly = true)
     public ApiResponse<UserDto> authenticate(Jwt jwt) {
         String azureId = jwt.getClaimAsString("oid");
         String email = jwt.getClaimAsString("upn");
@@ -71,6 +73,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ApiResponse<UserDto> authenticate(LoginRequest loginRequest) {
         try {
 

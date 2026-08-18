@@ -4,6 +4,7 @@ import com.ndash.identity_framework.domain.Setting;
 import com.ndash.identity_framework.repositories.SettingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -15,6 +16,7 @@ public class SettingService {
 
     private final SettingRepository repository;
 
+    @Transactional(readOnly = true)
     public Map<String, Object> getAllSettings() {
         return repository.findAll().stream()
                 .collect(Collectors.toMap(
@@ -46,6 +48,7 @@ public class SettingService {
         return setting.getValue();
     }
 
+    @Transactional(readOnly = true)
     public boolean getBoolean(String key) {
         return repository.findByKey(key)
                 .map(s -> Boolean.parseBoolean(s.getValue()))

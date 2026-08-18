@@ -1,5 +1,6 @@
 package com.ndash.identity_framework.services;
 
+import com.ndash.identity_framework.dto.FetchTypeEnum;
 import com.ndash.identity_framework.dto.ResetPasswordRequest;
 import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.exception.ApiException;
@@ -10,8 +11,8 @@ import java.util.List;
 
 public interface UserService {
     UserDto createUser(UserDto userDto, Long loggedInUserId) throws ApiException;
-    List<UserDto> getAllUsers() throws ApiException;
-    UserDto getUserById(Long id);
+    List<UserDto> getAllUsers(final FetchTypeEnum fetchTypeEnum) throws ApiException;
+    UserDto getUserById(Long id, FetchTypeEnum fetchTypeEnum);
     void syncUsersFromAzure();
     void deleteUser(Long id);
     Page<UserDto> searchUsersByUsername(String username, int page, int size);

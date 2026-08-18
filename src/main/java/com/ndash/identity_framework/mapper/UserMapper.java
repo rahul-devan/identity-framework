@@ -24,6 +24,11 @@ public class UserMapper {
         dto.setActive(user.isActive());
         dto.setCountryCode(user.getCountryCode());
         dto.setMaskedSsn(CommonUtil.maskSSN(user.getSsn()));  // masked
+        if (user.getManager() != null) {
+            dto.setManager(user.getManager().getId());
+            dto.setManagerName(user.getManager().getFirstName() + " " + user.getManager().getLastName());
+        }
+        dto.setCompanyId(user.getCompany() != null ? user.getCompany().getId() : null);
         dto.setRoles(
                 user.getUserRoles().stream()
                         .map(ur -> ur.getRole().getName())

@@ -15,6 +15,26 @@ public interface BlueprintRepository extends JpaRepository<Blueprint, Long> {
     boolean existsByNameIgnoreCase(String name);
 
     @Query("""
+            SELECT DISTINCT b
+            FROM Blueprint b
+            LEFT JOIN FETCH b.jobTitles
+            LEFT JOIN FETCH b.applicationRoles ar
+            LEFT JOIN FETCH ar.application
+            ORDER BY b.name ASC
+            """)
+    List<Blueprint> findAllWithDetails();
+
+    @Query("""
+            SELECT DISTINCT b
+            FROM Blueprint b
+            LEFT JOIN FETCH b.jobTitles
+            LEFT JOIN FETCH b.applicationRoles ar
+            LEFT JOIN FETCH ar.application
+            WHERE b.id = :id
+            """)
+    Optional<Blueprint> findWithDetailsById(@Param("id") Long id);
+
+    @Query("""
         SELECT DISTINCT b
         FROM Blueprint b
         JOIN b.jobTitles jt

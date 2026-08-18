@@ -15,7 +15,6 @@ import java.util.Set;
 public interface RoleRepository extends JpaRepository<Role, Long> {
     Optional<Role> findByName(String name);
     Page<Role> findByNameContainingIgnoreCase(String name, Pageable pageable);
-    List<Role> findByNameContainingIgnoreCase(String name);
     boolean existsByName(String name);
     List<Role> findByNameIn(Set<String> names);
 

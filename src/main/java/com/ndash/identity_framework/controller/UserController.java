@@ -2,6 +2,7 @@ package com.ndash.identity_framework.controller;
 
 import com.ndash.identity_framework.domain.User;
 import com.ndash.identity_framework.dto.ApiResponse;
+import com.ndash.identity_framework.dto.FetchTypeEnum;
 import com.ndash.identity_framework.dto.ResetPasswordRequest;
 import com.ndash.identity_framework.dto.UserDto;
 import com.ndash.identity_framework.exception.ApiException;
@@ -29,15 +30,16 @@ public class UserController {
     @PostMapping
     public ResponseEntity<ApiResponse<UserDto>> createUser(@RequestBody UserDto userDto,
                                                            @AuthenticationPrincipal Jwt jwt) throws ApiException {
-        Long loggedInUserId = userService.getUserById(jwt.getClaim("userId")).getId();
+        Long loggedInUserId = jwt.getClaim("userId");
         UserDto createdUser = userService.createUser(userDto, loggedInUserId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(createdUser, HttpStatus.CREATED.value()));
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<UserDto>>> getAllUsers(@AuthenticationPrincipal Jwt jwt) throws ApiException {
-        List<UserDto> users = userService.getAllUsers();
+    public ResponseEntity<ApiResponse<List<UserDto>>> getAllUsers(@AuthenticationPrincipal Jwt jwt,
+                                                                  @RequestParam("fetchType") final FetchTypeEnum fetchTypeEnum) throws ApiException {
+        List<UserDto> users = userService.getAllUsers(fetchTypeEnum);
         return ResponseEntity.ok(ApiResponse.success(users, HttpStatus.OK.value()));
     }
 
@@ -50,8 +52,9 @@ public class UserController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UserDto>> getUserById(@PathVariable Long id,
+                                                            @RequestParam(name = "fetchType", defaultValue = "ALL") FetchTypeEnum fetchType,
                                                             @AuthenticationPrincipal Jwt jwt) {
-        UserDto user = userService.getUserById(id);
+        UserDto user = userService.getUserById(id, fetchType);
         return ResponseEntity.ok(ApiResponse.success(user, HttpStatus.OK.value()));
     }
 

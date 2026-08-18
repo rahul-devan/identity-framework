@@ -1,5 +1,12 @@
 #server:
 #  port: 8082
+server:
+  error:
+    include-message: always
+    include-exception: true
+    whitelabel:
+      enabled: false
+
 spring:
   application:
     name: identity-framework
@@ -36,6 +43,7 @@ azure:
   tenant-id: db067b07-979a-4dfa-8f65-2f7e2ed9201d
   client-id: 2fea369b-c5a4-40b3-8bbf-4634463719fd
   client-secret: 9sk8Q~Z66a0Z-jyQiaB0Z6wURBeMNkJLx5QMUarh
+  upn-domain: NETORGFT16179011.onmicrosoft.com
   graph:
     scope: https://graph.microsoft.com/.default
 
@@ -61,5 +69,5 @@ logging:
     org.springframework.security: DEBUG
 
 internal:
-  default-company-name: Parent Company
+  default-company-name: Identity Sphere
 

@@ -4,7 +4,8 @@ import com.ndash.identity_framework.domain.*;
 import com.ndash.identity_framework.domain.enums.RequestStatus;
 import com.ndash.identity_framework.dto.*;
 import com.ndash.identity_framework.dto.DelegateRequestDTO;
-import com.ndash.identity_framework.exception.ApiException;
+import com.ndash.identity_framework.exception.BadRequestException;
+import com.ndash.identity_framework.exception.ResourceNotFoundException;
 import com.ndash.identity_framework.repositories.*;
 import com.ndash.identity_framework.services.DelegateService;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +29,7 @@ public class DelegateServiceImpl implements DelegateService {
 
         if (delegateRequestRepository.existsByRequesterIdAndTargetDepartmentIdAndStatus(
                 userId, dto.getTargetDepartmentId(), RequestStatus.PENDING)) {
-            throw new RuntimeException("Request already pending");
+            throw new BadRequestException("A delegate request for this department is already pending");
         }
 
         com.ndash.identity_framework.domain.DelegateRequest request = new com.ndash.identity_framework.domain.DelegateRequest();
@@ -42,20 +43,12 @@ public class DelegateServiceImpl implements DelegateService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<DelegateRequestResponseDTO> getPendingRequests(Long departmentId) {
-
-        return delegateRequestRepository
-                .findByTargetDepartmentIdAndStatus(departmentId, RequestStatus.PENDING)
-                .stream()
-                .map(req -> DelegateRequestResponseDTO.builder()
-                        .id(req.getId())
-                        .requesterName(req.getRequester().getFirstName() + " " + req.getRequester().getLastName())
-                        .departmentName(req.getTargetDepartment().getName())
-                        .status(req.getStatus().name())
-                        .comments(req.getComments())
-                        .requestedAt(req.getRequestedAt())
-                        .build()
-                ).toList();
+        return delegateRequestRepository.findPendingRequestResponsesByDepartmentId(
+                departmentId,
+                RequestStatus.PENDING
+        );
     }
 
     @Override
@@ -90,6 +83,7 @@ public class DelegateServiceImpl implements DelegateService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<DelegatedUserDto> getDelegatedUsers(Long userId) {
 
         List<Long> deptIds = accessRepository.findByUserId(userId)
@@ -115,22 +109,9 @@ public class DelegateServiceImpl implements DelegateService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<DelegateRequestResponseDTO> getMyRequests(Long userId) {
-
-        return delegateRequestRepository.findByRequesterId(userId)
-                .stream()
-                .filter(req -> req.getStatus() != RequestStatus.REVOKED)
-                .map(req -> DelegateRequestResponseDTO.builder()
-                        .id(req.getId())
-                        .requesterName(req.getRequester().getFirstName() + " " + req.getRequester().getLastName())
-                        .departmentName(req.getTargetDepartment().getName())
-                        .status(req.getStatus().name())
-                        .comments(req.getComments())
-                        .requestedAt(req.getRequestedAt())
-                        .actionedAt(req.getActionedAt() != null ? req.getActionedAt() : null)
-                        .actionedByName(req.getActionedBy() != null ? req.getActionedBy().getFirstName() + " " + req.getActionedBy().getLastName() : "")
-                        .build()
-                ).toList();
+        return delegateRequestRepository.findMyRequestResponsesByRequesterId(userId);
     }
 
     @Override
@@ -138,7 +119,7 @@ public class DelegateServiceImpl implements DelegateService {
     public void revokeDelegate(Long requesterId, Long departmentId, String comments, Long actionedById) {
 
         User currentUser = userRepository.findById(actionedById)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + actionedById));
 
         DelegateRequest request = delegateRequestRepository
                 .findByRequesterIdAndTargetDepartmentIdAndStatus(
@@ -146,14 +127,14 @@ public class DelegateServiceImpl implements DelegateService {
                         departmentId,
                         RequestStatus.APPROVED
                 )
-                .orElseThrow(() -> new RuntimeException("No active delegation found"));
+                .orElseThrow(() -> new ResourceNotFoundException("No active delegation found for this department"));
 
         // 👇 SIMPLE check (not heavy)
         if (!request.getRequester().getId().equals(currentUser.getId())
                 && (request.getActionedBy() == null ||
                 !request.getActionedBy().getId().equals(currentUser.getId()))) {
 
-            throw new RuntimeException("Not allowed to revoke");
+            throw new BadRequestException("You are not allowed to revoke this delegation");
         }
 
         request.setStatus(RequestStatus.REVOKED);

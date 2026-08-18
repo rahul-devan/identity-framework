@@ -4,6 +4,7 @@ import com.ndash.identity_framework.dto.ApiResponse;
 import com.ndash.identity_framework.dto.BlueprintRequest;
 import com.ndash.identity_framework.dto.BlueprintResponse;
 import com.ndash.identity_framework.services.BluePrintService;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -70,8 +71,6 @@ public class BlueprintController {
 
         blueprintService.deleteBlueprint(id);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>("SUCCESS", 200, null, null)
-        );
+        return ResponseEntity.ok(ApiResponse.success(null, HttpStatus.OK.value()));
     }
 }

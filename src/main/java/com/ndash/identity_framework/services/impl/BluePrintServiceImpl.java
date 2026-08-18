@@ -40,7 +40,7 @@ public class BluePrintServiceImpl implements BluePrintService {
 
         log.info("Fetching all blueprints");
 
-        List<Blueprint> blueprints = blueprintRepository.findAll();
+        List<Blueprint> blueprints = blueprintRepository.findAllWithDetails();
 
         return blueprints.stream()
                 .map(blueprintMapper::toResponse)
@@ -54,7 +54,7 @@ public class BluePrintServiceImpl implements BluePrintService {
 
         log.info("Fetching blueprint with id={}", id);
 
-        Blueprint blueprint = blueprintRepository.findById(id)
+        Blueprint blueprint = blueprintRepository.findWithDetailsById(id)
                 .orElseThrow(() -> {
                     log.error("Blueprint not found with id={}", id);
                     return new ResourceNotFoundException("Blueprint not found with id: " + id);
@@ -234,7 +234,7 @@ public class BluePrintServiceImpl implements BluePrintService {
 
         log.info("Deleting blueprint with id={}", id);
 
-        Blueprint blueprint = blueprintRepository.findById(id)
+        Blueprint blueprint = blueprintRepository.findWithDetailsById(id)
                 .orElseThrow(() -> {
                     log.error("Blueprint not found for deletion with id={}", id);
                     return new ResourceNotFoundException("Blueprint not found with id: " + id);

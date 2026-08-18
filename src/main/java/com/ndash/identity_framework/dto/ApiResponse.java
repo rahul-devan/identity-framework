@@ -1,8 +1,14 @@
 package com.ndash.identity_framework.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse<T> {
 
     private String statusMessage;
@@ -10,12 +16,6 @@ public class ApiResponse<T> {
     private T data;
     private String error;
 
-    public ApiResponse(String statusMessage, int statusCode, T data, String error) {
-        this.statusMessage = statusMessage;
-        this.statusCode = statusCode;
-        this.data = data;
-        this.error = error;
-    }
     public static <T> ApiResponse<T> success(T data, int statusCode) {
         return new ApiResponse<>("SUCCESS", statusCode, data, null);
     }
@@ -24,4 +24,3 @@ public class ApiResponse<T> {
         return new ApiResponse<>("ERROR", statusCode, null, errorMessage);
     }
 }
-
