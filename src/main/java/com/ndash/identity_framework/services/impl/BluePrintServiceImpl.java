@@ -123,15 +123,15 @@ public class BluePrintServiceImpl implements BluePrintService {
 
             for (String roleName : appReq.getRoles()) {
 
+                ApplicationRole applicationRole =
+                        resolveApplicationRole(application, roleName);
+
                 BlueprintApplicationRole mapping =
                         new BlueprintApplicationRole();
 
                 mapping.setBlueprint(blueprint);
-
                 mapping.setApplication(application);
-
-                mapping.setApplicationRole(null);
-
+                mapping.setApplicationRole(applicationRole);
                 mapping.setRoleName(roleName);
 
                 mappings.add(mapping);
@@ -207,13 +207,15 @@ public class BluePrintServiceImpl implements BluePrintService {
 
             for (String roleName : appReq.getRoles()) {
 
+                ApplicationRole applicationRole =
+                        resolveApplicationRole(application, roleName);
+
                 BlueprintApplicationRole mapping =
                         new BlueprintApplicationRole();
 
                 mapping.setBlueprint(existing);
-
                 mapping.setApplication(application);
-
+                mapping.setApplicationRole(applicationRole);
                 mapping.setRoleName(roleName);
 
                 mappings.add(mapping);
@@ -245,7 +247,17 @@ public class BluePrintServiceImpl implements BluePrintService {
         log.info("Blueprint deleted successfully with id={}", id);
     }
 
-    // 🔥 VALIDATION METHOD
+    private ApplicationRole resolveApplicationRole(Application application, String roleName) {
+        return applicationRoleRepository
+                .findByApplicationIdAndRoleNameIgnoreCase(application.getId(), roleName)
+                .orElseGet(() -> {
+                    ApplicationRole role = new ApplicationRole();
+                    role.setApplication(application);
+                    role.setRoleName(roleName);
+                    return applicationRoleRepository.save(role);
+                });
+    }
+
     private void validateRequest(BlueprintRequest request) {
 
         if (request.getName() == null || request.getName().isBlank()) {
