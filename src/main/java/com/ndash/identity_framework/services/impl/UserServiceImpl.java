@@ -3,6 +3,7 @@ package com.ndash.identity_framework.services.impl;
 import com.ndash.identity_framework.domain.*;
 import com.ndash.identity_framework.domain.enums.UserSource;
 import com.ndash.identity_framework.dto.FetchTypeEnum;
+import com.ndash.identity_framework.dto.AdminResetPasswordRequest;
 import com.ndash.identity_framework.dto.ResetPasswordRequest;
 import com.ndash.identity_framework.dto.SimpleUserDto;
 import com.ndash.identity_framework.dto.UserDto;
@@ -24,10 +25,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -262,6 +265,27 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    @Override
+    public UserDto updateUserActiveness(Long userId, UserDto userDto) throws ApiException {
+        try {
+            User existingUser = userRepository.findWithDetailsById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+            existingUser.setActive(userDto.isActive());
+            User updatedUser = userRepository.save(existingUser);
+            UserDto dto = UserMapper.toDto(updatedUser);
+            dto.setCompanyName(updatedUser.getCompany() != null
+                    ? updatedUser.getCompany().getName()
+                    : defaultCompanyName);
+            return dto;
+        } catch (ApiException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            log.error("Exception occurred while updating user: {}", ex.getMessage(), ex);
+            throw new ApiException(ex.getMessage() != null ? ex.getMessage() : "Failed to update user");
+        }
+    }
+
     private void applyBasicFields(User existingUser, UserDto userDto) {
         if (userDto.getFirstName() != null) {
             existingUser.setFirstName(userDto.getFirstName());
@@ -404,6 +428,69 @@ public class UserServiceImpl implements UserService {
             log.error("Error resetting password", ex);
             throw new ApiException(ex.getMessage() != null ? ex.getMessage() : "Failed to reset password");
         }
+    }
+
+    @Override
+    public void adminResetPassword(AdminResetPasswordRequest request, Jwt jwt) throws ApiException {
+        try {
+            if (request.getUserId() == null) {
+                throw new BadRequestException("userId is required");
+            }
+            if (request.getNewPassword() == null || request.getNewPassword().isBlank()) {
+                throw new BadRequestException("New password is required");
+            }
+
+            List<String> roles = jwt.getClaimAsStringList("roles");
+            if (roles == null || roles.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient permissions to reset password");
+            }
+
+            boolean isSuperAdmin = roles.stream()
+                    .anyMatch(role -> "super_admin".equalsIgnoreCase(role));
+            boolean isManager = roles.stream()
+                    .anyMatch(role -> "manager".equalsIgnoreCase(role));
+
+            if (!isSuperAdmin && !isManager) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Only super_admin or manager can reset another user's password"
+                );
+            }
+
+            User targetUser = userRepository.findById(request.getUserId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "User not found with id: " + request.getUserId()));
+
+            if (isManager && !isSuperAdmin) {
+                Long actorUserId = extractUserIdFromJwt(jwt);
+                if (targetUser.getManager() == null
+                        || !targetUser.getManager().getId().equals(actorUserId)) {
+                    throw new ResponseStatusException(
+                            HttpStatus.FORBIDDEN,
+                            "Managers can only reset passwords for their direct subordinates"
+                    );
+                }
+            }
+
+            targetUser.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            userRepository.save(targetUser);
+
+            log.info("User {} reset password for user id={}", extractUserIdFromJwt(jwt), request.getUserId());
+
+        } catch (ApiException | ResponseStatusException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            log.error("Error resetting password by admin/manager", ex);
+            throw new ApiException(ex.getMessage() != null ? ex.getMessage() : "Failed to reset password");
+        }
+    }
+
+    private Long extractUserIdFromJwt(Jwt jwt) {
+        Object userIdClaim = jwt.getClaim("userId");
+        if (userIdClaim instanceof Number number) {
+            return number.longValue();
+        }
+        throw new BadRequestException("Invalid userId claim in token");
     }
 
     @Override

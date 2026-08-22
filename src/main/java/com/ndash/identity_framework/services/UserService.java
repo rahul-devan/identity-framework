@@ -1,5 +1,6 @@
 package com.ndash.identity_framework.services;
 
+import com.ndash.identity_framework.dto.AdminResetPasswordRequest;
 import com.ndash.identity_framework.dto.FetchTypeEnum;
 import com.ndash.identity_framework.dto.ResetPasswordRequest;
 import com.ndash.identity_framework.dto.UserDto;
@@ -19,7 +20,12 @@ public interface UserService {
 
     UserDto updateUser(Long userId, UserDto userDto) throws ApiException;
 
+    UserDto updateUserActiveness(Long userId, UserDto userDto) throws ApiException;
+
     void resetPassword(Long userId, ResetPasswordRequest request, Jwt jwt) throws ApiException;
+
+    void adminResetPassword(AdminResetPasswordRequest request, Jwt jwt) throws ApiException;
+
     List<UserDto> getUsersByDepartment(Long departmentId) throws ApiException;
     List<UserDto> getAllManagers() throws ApiException;
 }

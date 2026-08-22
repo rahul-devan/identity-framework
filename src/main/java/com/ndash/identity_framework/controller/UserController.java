@@ -1,6 +1,7 @@
 package com.ndash.identity_framework.controller;
 
 import com.ndash.identity_framework.domain.User;
+import com.ndash.identity_framework.dto.AdminResetPasswordRequest;
 import com.ndash.identity_framework.dto.ApiResponse;
 import com.ndash.identity_framework.dto.FetchTypeEnum;
 import com.ndash.identity_framework.dto.ResetPasswordRequest;
@@ -88,6 +89,19 @@ public class UserController {
         );
     }
 
+    @PutMapping("/{id}/active")
+    public ResponseEntity<ApiResponse<UserDto>> updateUserActivenes(
+            @PathVariable Long id,
+            @RequestBody UserDto userDto,
+            @AuthenticationPrincipal Jwt jwt) throws ApiException {
+
+        UserDto updatedUser = userService.updateUserActiveness(id, userDto);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(updatedUser, HttpStatus.OK.value())
+        );
+    }
+
     @PostMapping("/{id}/reset-password")
     public ResponseEntity<ApiResponse<String>> resetPassword(
             @PathVariable Long id,
@@ -95,6 +109,18 @@ public class UserController {
             @AuthenticationPrincipal Jwt jwt) throws ApiException {
 
         userService.resetPassword(id, request, jwt);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Password updated successfully", HttpStatus.OK.value())
+        );
+    }
+
+    @PostMapping("/admin-reset-password")
+    public ResponseEntity<ApiResponse<String>> adminResetPassword(
+            @RequestBody AdminResetPasswordRequest request,
+            @AuthenticationPrincipal Jwt jwt) throws ApiException {
+
+        userService.adminResetPassword(request, jwt);
 
         return ResponseEntity.ok(
                 ApiResponse.success("Password updated successfully", HttpStatus.OK.value())
