@@ -35,4 +35,5 @@ public interface UserApplicationRepository
             Long userId,
             Long applicationId
     );
+
 }
